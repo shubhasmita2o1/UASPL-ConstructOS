@@ -11,6 +11,9 @@ import UnauthorizedPage from "@/pages/UnauthorizedPage";
 import NotFoundPage from "@/pages/NotFoundPage";
 import DashboardPage from "@/pages/DashboardPage";
 import ModulePlaceholderPage from "@/pages/ModulePlaceholderPage";
+import ProjectsListPage from "@/pages/projects/ProjectsListPage";
+import ProjectDetailsPage from "@/pages/projects/ProjectsDetailsPage";
+import ProjectFormPage from "@/pages/projects/ProjectsFormPage";
 import { FLAT_NAV } from "@/constants/navigation";
 
 function RequireAuth() {
@@ -41,7 +44,11 @@ export default function App() {
           <Route path="/app" element={<AppLayout />}>
             <Route index element={<Navigate to="/app/dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage />} />
-            {FLAT_NAV.filter((n) => n.to !== "/app/dashboard").map((n) => (
+            <Route path="projects" element={<ProjectsListPage />} />
+            <Route path="projects/new" element={<ProjectFormPage mode="create" />} />
+            <Route path="projects/:id" element={<ProjectDetailsPage />} />
+            <Route path="projects/:id/edit" element={<ProjectFormPage mode="edit" />} />
+            {FLAT_NAV.filter((n) => !["/app/dashboard", "/app/projects"].includes(n.to)).map((n) => (
               <Route
                 key={n.to}
                 path={n.to.replace("/app/", "")}

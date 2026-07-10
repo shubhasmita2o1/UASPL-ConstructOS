@@ -6,6 +6,12 @@
 @import "@fontsource/inter/700.css";
 @import "@fontsource/inter/800.css";
 
+/* Disables all transitions app-wide for one frame while the theme swaps,
+   so colors snap instantly instead of animating via transition-colors */
+.theme-switching * {
+  transition: none !important;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
