@@ -11,9 +11,12 @@ import UnauthorizedPage from "@/pages/UnauthorizedPage";
 import NotFoundPage from "@/pages/NotFoundPage";
 import DashboardPage from "@/pages/DashboardPage";
 import ModulePlaceholderPage from "@/pages/ModulePlaceholderPage";
-import ProjectsListPage from "@/pages/projects/ProjectsListPage";
-import ProjectDetailsPage from "@/pages/projects/ProjectsDetailsPage";
-import ProjectFormPage from "@/pages/projects/ProjectsFormPage";
+import ProjectsListPage from "@/pages/project/ProjectsListPage";
+import ProjectDetailsPage from "@/pages/project/ProjectDetailsPage";
+import ProjectFormPage from "@/pages/project/ProjectFormPage";
+import OrganizationsListPage from "@/pages/organizations/OrganizationsListPage";
+import OrganizationDetailsPage from "@/pages/organizations/OrganizationDetailsPage";
+import OrganizationFormPage from "@/pages/organizations/OrganizationFormPage";
 import { FLAT_NAV } from "@/constants/navigation";
 
 function RequireAuth() {
@@ -48,7 +51,11 @@ export default function App() {
             <Route path="projects/new" element={<ProjectFormPage mode="create" />} />
             <Route path="projects/:id" element={<ProjectDetailsPage />} />
             <Route path="projects/:id/edit" element={<ProjectFormPage mode="edit" />} />
-            {FLAT_NAV.filter((n) => !["/app/dashboard", "/app/projects"].includes(n.to)).map((n) => (
+            <Route path="organizations" element={<OrganizationsListPage />} />
+            <Route path="organizations/new" element={<OrganizationFormPage mode="create" />} />
+            <Route path="organizations/:id" element={<OrganizationDetailsPage />} />
+            <Route path="organizations/:id/edit" element={<OrganizationFormPage mode="edit" />} />
+            {FLAT_NAV.filter((n) => !["/app/dashboard", "/app/projects", "/app/organizations"].includes(n.to)).map((n) => (
               <Route
                 key={n.to}
                 path={n.to.replace("/app/", "")}
