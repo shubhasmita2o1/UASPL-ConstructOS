@@ -3,9 +3,18 @@ import { HardHat, ChevronsLeft } from "lucide-react";
 import { NAV_SECTIONS } from "@/constants/navigation";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Sidebar({ collapsed, onToggle }) {
   const { pathname } = useLocation();
+  const { hasAnyPermission } = useAuth();
+
+  const visibleSections = NAV_SECTIONS
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => !item.perm || hasAnyPermission([].concat(item.perm))),
+    }))
+    .filter((section) => section.items.length > 0);
 
   return (
     <aside
@@ -36,7 +45,7 @@ export default function Sidebar({ collapsed, onToggle }) {
       </div>
 
       <nav className="flex-1 overflow-y-auto scrollbar-thin px-2 py-3 space-y-4">
-        {NAV_SECTIONS.map((section) => (
+        {visibleSections.map((section) => (
           <div key={section.label}>
             {!collapsed && (
               <div className="px-2 mb-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground/80">

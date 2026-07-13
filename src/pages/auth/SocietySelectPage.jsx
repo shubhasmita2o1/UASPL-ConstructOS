@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
-import { ArrowRight, ArrowLeft, MapPin, Building, Check, Landmark } from "lucide-react";
+import { ArrowRight, ArrowLeft, MapPin, Building, Check, Landmark, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { cn } from "@/lib/utils";
@@ -12,13 +13,21 @@ export default function SocietySelectPage() {
   const { org, societies, setSociety, societyId } = useWorkspace();
   const navigate = useNavigate();
   const [selected, setSelected] = useState(societyId);
+  const [pending, setPending] = useState(false);
 
   if (!org) return <Navigate to="/auth/select-organization" replace />;
 
-  const proceed = () => {
+  const proceed = async () => {
     if (!selected) return;
-    setSociety(selected);
-    navigate("/app/dashboard", { replace: true });
+    setPending(true);
+    try {
+      await setSociety(selected);
+      navigate("/app/dashboard", { replace: true });
+    } catch {
+      toast.error("Couldn't select that society");
+    } finally {
+      setPending(false);
+    }
   };
 
   return (
@@ -67,8 +76,8 @@ export default function SocietySelectPage() {
         })}
       </div>
 
-      <Button className="w-full h-10 gap-2" disabled={!selected} onClick={proceed}>
-        Enter workspace <ArrowRight className="h-4 w-4" />
+      <Button className="w-full h-10 gap-2" disabled={!selected || pending} onClick={proceed}>
+        {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Enter workspace <ArrowRight className="h-4 w-4" /></>}
       </Button>
     </div>
   );

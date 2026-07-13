@@ -10,37 +10,38 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
-import { DEMO_USERS, ROLES } from "@/data/mockData";
 
 const schema = z.object({
-  email: z.string().email("Enter a valid work email"),
-  password: z.string().min(6, "Minimum 6 characters"),
+  identifier: z.string().min(1, "Enter your work email or employee ID"),
+  password: z.string().min(1, "Password is required"),
   remember: z.boolean().optional(),
 });
 
 export default function LoginPage() {
-  const { login, loginAs, loading } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [showPw, setShowPw] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
-    defaultValues: { email: "neha@uaspl.in", password: "demo1234", remember: true },
+    defaultValues: { identifier: "", password: "", remember: true },
   });
 
   const from = location.state?.from ?? "/auth/select-organization";
 
   const onSubmit = async (values) => {
-    await login(values);
-    toast.success("Signed in", { description: "Welcome back to ConstructOS" });
-    navigate(from, { replace: true });
-  };
-
-  const quickLogin = async (u) => {
-    await loginAs(u);
-    toast.success(`Signed in as ${u.name}`);
-    navigate("/auth/select-organization", { replace: true });
+    setSubmitting(true);
+    try {
+      await login(values);
+      toast.success("Signed in", { description: "Welcome back to ConstructOS" });
+      navigate(from, { replace: true });
+    } catch (err) {
+      toast.error(err.message || "Unable to sign in");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -54,9 +55,9 @@ export default function LoginPage() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-1.5">
-          <Label htmlFor="email">Work email</Label>
-          <Input id="email" type="email" placeholder="you@uaspl.in" autoComplete="email" {...register("email")} />
-          {errors.email && <p className="text-[12px] text-destructive">{errors.email.message}</p>}
+          <Label htmlFor="identifier">Email or employee ID</Label>
+          <Input id="identifier" type="text" placeholder="you@uaspl.in" autoComplete="username" {...register("identifier")} />
+          {errors.identifier && <p className="text-[12px] text-destructive">{errors.identifier.message}</p>}
         </div>
 
         <div className="space-y-1.5">
@@ -78,29 +79,10 @@ export default function LoginPage() {
           <Label htmlFor="remember" className="text-[13px] text-muted-foreground font-normal">Keep me signed in for 30 days</Label>
         </div>
 
-        <Button type="submit" className="w-full h-10 gap-2" disabled={loading}>
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Sign in <ArrowRight className="h-4 w-4" /></>}
+        <Button type="submit" className="w-full h-10 gap-2" disabled={submitting}>
+          {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Sign in <ArrowRight className="h-4 w-4" /></>}
         </Button>
       </form>
-
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
-        <div className="relative flex justify-center"><span className="bg-background px-2 text-[11px] uppercase tracking-wider text-muted-foreground">Demo personas</span></div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        {DEMO_USERS.map((u) => (
-          <button key={u.id} type="button" onClick={() => quickLogin(u)} className="text-left p-2.5 rounded-lg border border-border hover:border-primary/40 hover:bg-accent/60 transition-colors group">
-            <div className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-md bg-primary/10 text-primary grid place-items-center text-[11px] font-semibold">{u.avatar}</div>
-              <div className="min-w-0">
-                <div className="text-[12.5px] font-semibold truncate">{u.name}</div>
-                <div className="text-[10.5px] text-muted-foreground truncate">{ROLES.find(r => r.id === u.role)?.label}</div>
-              </div>
-            </div>
-          </button>
-        ))}
-      </div>
 
       <p className="text-center text-[12px] text-muted-foreground">
         By continuing you agree to UASPL's <a className="underline underline-offset-2 hover:text-foreground" href="#">Terms</a> and <a className="underline underline-offset-2 hover:text-foreground" href="#">Privacy Policy</a>.

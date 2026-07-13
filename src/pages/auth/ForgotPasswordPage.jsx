@@ -1,13 +1,30 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Mail, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Mail, CheckCircle2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function ForgotPasswordPage() {
+  const { forgotPassword } = useAuth();
   const [sent, setSent] = useState(false);
   const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await forgotPassword(email);
+      setSent(true);
+    } catch (err) {
+      toast.error(err.message || "Couldn't send reset link");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -36,7 +53,7 @@ export default function ForgotPasswordPage() {
               Enter the work email associated with your ConstructOS account.
             </p>
           </div>
-          <form onSubmit={(e) => { e.preventDefault(); setSent(true); }} className="space-y-4">
+          <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="fp-email">Work email</Label>
               <div className="relative">
@@ -44,7 +61,9 @@ export default function ForgotPasswordPage() {
                 <Input id="fp-email" type="email" required placeholder="you@uaspl.in" className="pl-9" value={email} onChange={(e) => setEmail(e.target.value)} />
               </div>
             </div>
-            <Button type="submit" className="w-full h-10">Send reset link</Button>
+            <Button type="submit" className="w-full h-10" disabled={submitting}>
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send reset link"}
+            </Button>
           </form>
         </>
       )}

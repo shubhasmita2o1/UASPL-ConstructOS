@@ -40,9 +40,11 @@ function Card({ title, description, action, children, className = "" }) {
 }
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, hasPermission, hasAnyPermission } = useAuth();
   const { org, society } = useWorkspace();
   const firstName = user?.name?.split(" ")[0] ?? "there";
+  const canSeeApprovals = hasAnyPermission(["drawing.approve", "finance.approve"]);
+  const canSeeFinance = hasPermission("finance.view");
 
   return (
     <PageContainer>
@@ -59,9 +61,13 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard label="Active projects" value="24" delta={8} icon={HardHat} tone="primary" />
-        <StatCard label="Pending approvals" value="37" delta={-12} deltaLabel="vs last week" icon={ClipboardCheck} tone="info" />
+        {canSeeApprovals && (
+          <StatCard label="Pending approvals" value="37" delta={-12} deltaLabel="vs last week" icon={ClipboardCheck} tone="info" />
+        )}
         <StatCard label="Open NCRs" value="9" delta={4} icon={AlertTriangle} tone="warning" />
-        <StatCard label="Committed spend" value={formatCurrency(1284)} delta={3} icon={IndianRupee} tone="success" />
+        {canSeeFinance && (
+          <StatCard label="Committed spend" value={formatCurrency(1284)} delta={3} icon={IndianRupee} tone="success" />
+        )}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
@@ -173,29 +179,31 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        <Card title="Approvals awaiting you" description={`${APPROVAL_QUEUE.length} items in your queue`} action={<Button variant="ghost" size="sm" className="text-primary gap-1">Open queue <ChevronRight className="h-3.5 w-3.5" /></Button>}>
-          <ul className="space-y-2 -mx-1">
-            {APPROVAL_QUEUE.map((a) => (
-              <li key={a.id} className="p-3 rounded-lg border border-border hover:border-primary/40 hover:bg-accent/40 transition-colors cursor-pointer">
-                <div className="flex items-start gap-3">
-                  <div className="h-8 w-8 rounded-md bg-primary/10 text-primary grid place-items-center shrink-0">
-                    <FileCheck2 className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10.5px] font-semibold text-muted-foreground">{a.type}</span>
-                      <StatusBadge tone={a.priority === "High" ? "destructive" : a.priority === "Medium" ? "warning" : "neutral"} dot={false} className="!py-0 !text-[10px]">
-                        {a.priority}
-                      </StatusBadge>
+        {canSeeApprovals && (
+          <Card title="Approvals awaiting you" description={`${APPROVAL_QUEUE.length} items in your queue`} action={<Button variant="ghost" size="sm" className="text-primary gap-1">Open queue <ChevronRight className="h-3.5 w-3.5" /></Button>}>
+            <ul className="space-y-2 -mx-1">
+              {APPROVAL_QUEUE.map((a) => (
+                <li key={a.id} className="p-3 rounded-lg border border-border hover:border-primary/40 hover:bg-accent/40 transition-colors cursor-pointer">
+                  <div className="flex items-start gap-3">
+                    <div className="h-8 w-8 rounded-md bg-primary/10 text-primary grid place-items-center shrink-0">
+                      <FileCheck2 className="h-4 w-4" />
                     </div>
-                    <div className="text-[13px] font-semibold text-foreground truncate mt-0.5">{a.title}</div>
-                    <div className="text-[11.5px] text-muted-foreground mt-0.5 truncate">{a.stage} · {a.submittedBy} · {a.submittedOn}</div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10.5px] font-semibold text-muted-foreground">{a.type}</span>
+                        <StatusBadge tone={a.priority === "High" ? "destructive" : a.priority === "Medium" ? "warning" : "neutral"} dot={false} className="!py-0 !text-[10px]">
+                          {a.priority}
+                        </StatusBadge>
+                      </div>
+                      <div className="text-[13px] font-semibold text-foreground truncate mt-0.5">{a.title}</div>
+                      <div className="text-[11.5px] text-muted-foreground mt-0.5 truncate">{a.stage} · {a.submittedBy} · {a.submittedOn}</div>
+                    </div>
                   </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Card>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">

@@ -1,27 +1,35 @@
 import { useNavigate } from "react-router-dom";
-import { Building2, ArrowRight, Search, Check } from "lucide-react";
+import { Building2, ArrowRight, Search, Check, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ORGANIZATIONS } from "@/data/mockData";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { initials } from "@/utils/format";
 
 export default function OrganizationSelectPage() {
-  const { setOrg, orgId } = useWorkspace();
+  const { setOrg, orgId, organizations } = useWorkspace();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState(orgId);
+  const [pending, setPending] = useState(false);
 
-  const filtered = ORGANIZATIONS.filter((o) => o.name.toLowerCase().includes(q.toLowerCase()));
+  const filtered = organizations.filter((o) => o.name.toLowerCase().includes(q.toLowerCase()));
 
-  const proceed = () => {
+  const proceed = async () => {
     if (!selected) return;
-    setOrg(selected);
-    navigate("/auth/select-society");
+    setPending(true);
+    try {
+      await setOrg(selected);
+      navigate("/auth/select-society");
+    } catch {
+      toast.error("Couldn't select that organization");
+    } finally {
+      setPending(false);
+    }
   };
 
   return (
@@ -73,8 +81,8 @@ export default function OrganizationSelectPage() {
         })}
       </div>
 
-      <Button className="w-full h-10 gap-2" disabled={!selected} onClick={proceed}>
-        Continue <ArrowRight className="h-4 w-4" />
+      <Button className="w-full h-10 gap-2" disabled={!selected || pending} onClick={proceed}>
+        {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Continue <ArrowRight className="h-4 w-4" /></>}
       </Button>
     </div>
   );
