@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ChevronLeft, ChevronRight, CalendarDays, Plus, Filter, ListChecks, AlertTriangle,
 } from "lucide-react";
@@ -35,6 +35,14 @@ export default function CalendarPage() {
   const tasks = useTasks();
   const projects = useProjects();
   const projectName = (id) => projects.find((p) => p.id === id)?.name ?? "—";
+  const navigate = useNavigate();
+
+  const newTaskOnDay = (d) => {
+    const params = new URLSearchParams({ new: "1", date: ymd(d) });
+    if (projectFilter !== "all") params.set("projectId", projectFilter);
+    navigate(`/app/tasks?${params.toString()}`);
+  };
+  const openTask = (id) => navigate(`/app/tasks/${id}`);
 
   const [cursor, setCursor] = useState(new Date());
   const [view, setView] = useState("month"); // month | week | agenda
@@ -158,20 +166,20 @@ export default function CalendarPage() {
         </div>
 
         {view === "month" && (
-          <MonthGrid days={days} cursor={cursor} today={today} eventsByDay={eventsByDay} projectName={projectName} />
+          <MonthGrid days={days} cursor={cursor} today={today} eventsByDay={eventsByDay} projectName={projectName} onDayClick={newTaskOnDay} onEventClick={openTask} />
         )}
         {view === "week" && (
-          <WeekGrid days={weekDays} today={today} eventsByDay={eventsByDay} projectName={projectName} />
+          <WeekGrid days={weekDays} today={today} eventsByDay={eventsByDay} projectName={projectName} onDayClick={newTaskOnDay} onEventClick={openTask} />
         )}
         {view === "agenda" && (
-          <AgendaList events={agenda} projectName={projectName} />
+          <AgendaList events={agenda} projectName={projectName} onEventClick={openTask} />
         )}
       </SectionCard>
     </PageContainer>
   );
 }
 
-function EventPill({ e }) {
+function EventPill({ e, onClick }) {
   const tone = TASK_PRIORITY_TONES[e.priority];
   const color = {
     neutral: "bg-muted text-foreground border-border",
@@ -182,13 +190,18 @@ function EventPill({ e }) {
     success: "bg-success/10 text-success border-success/20",
   }[tone];
   return (
-    <div className={cn("truncate rounded-md border px-1.5 py-0.5 text-[11px] leading-tight", color, e.status === "done" && "line-through opacity-70")}>
+    <button
+      type="button"
+      onClick={(ev) => { ev.stopPropagation(); onClick?.(e.id); }}
+      className={cn("truncate rounded-md border px-1.5 py-0.5 text-[11px] leading-tight text-left w-full hover:brightness-110 transition-[filter]", color, e.status === "done" && "line-through opacity-70")}
+      title={e.title}
+    >
       {e.title}
-    </div>
+    </button>
   );
 }
 
-function MonthGrid({ days, cursor, today, eventsByDay, projectName }) {
+function MonthGrid({ days, cursor, today, eventsByDay, projectName, onDayClick, onEventClick }) {
   return (
     <div className="p-3">
       <div className="grid grid-cols-7 text-[11px] uppercase tracking-wider text-muted-foreground px-1 pb-1.5">
@@ -200,11 +213,18 @@ function MonthGrid({ days, cursor, today, eventsByDay, projectName }) {
           const isToday = sameDay(d, today);
           const list = eventsByDay.get(ymd(d)) ?? [];
           return (
-            <div key={ymd(d)} className={cn(
-              "min-h-[104px] rounded-lg border border-border bg-background p-1.5 flex flex-col gap-1",
-              !inMonth && "bg-muted/30 opacity-70",
-              isToday && "ring-2 ring-primary/60",
-            )}>
+            <div
+              key={ymd(d)}
+              role="button"
+              tabIndex={0}
+              onClick={() => onDayClick?.(d)}
+              onKeyDown={(ev) => { if (ev.key === "Enter") onDayClick?.(d); }}
+              className={cn(
+                "min-h-[104px] rounded-lg border border-border bg-background p-1.5 flex flex-col gap-1 cursor-pointer hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/40",
+                !inMonth && "bg-muted/30 opacity-70",
+                isToday && "ring-2 ring-primary/60",
+              )}
+            >
               <div className="flex items-center justify-between px-1">
                 <span className={cn("text-[12px] font-semibold tabular-nums", isToday && "text-primary")}>
                   {d.getDate()}
@@ -212,7 +232,7 @@ function MonthGrid({ days, cursor, today, eventsByDay, projectName }) {
                 {list.length > 0 && <span className="text-[10px] text-muted-foreground tabular-nums">{list.length}</span>}
               </div>
               <div className="flex flex-col gap-1 overflow-hidden">
-                {list.slice(0, 3).map((e) => <EventPill key={e.id} e={e} />)}
+                {list.slice(0, 3).map((e) => <EventPill key={e.id} e={e} onClick={onEventClick} />)}
                 {list.length > 3 && (
                   <div className="text-[10.5px] text-muted-foreground px-1">+{list.length - 3} more</div>
                 )}
@@ -225,7 +245,7 @@ function MonthGrid({ days, cursor, today, eventsByDay, projectName }) {
   );
 }
 
-function WeekGrid({ days, today, eventsByDay, projectName }) {
+function WeekGrid({ days, today, eventsByDay, projectName, onDayClick, onEventClick }) {
   return (
     <div className="p-3 grid grid-cols-7 gap-2">
       {days.map((d) => {
@@ -233,21 +253,36 @@ function WeekGrid({ days, today, eventsByDay, projectName }) {
         const list = eventsByDay.get(ymd(d)) ?? [];
         return (
           <div key={ymd(d)} className={cn("rounded-lg border border-border bg-background flex flex-col min-h-[300px]", isToday && "ring-2 ring-primary/60")}>
-            <div className="px-3 py-2 border-b border-border">
-              <div className="text-[10.5px] uppercase tracking-wider text-muted-foreground">
-                {WEEKDAYS[(d.getDay() + 6) % 7]}
+            <div className="px-3 py-2 border-b border-border flex items-center justify-between">
+              <div>
+                <div className="text-[10.5px] uppercase tracking-wider text-muted-foreground">
+                  {WEEKDAYS[(d.getDay() + 6) % 7]}
+                </div>
+                <div className={cn("text-[16px] font-semibold tabular-nums", isToday && "text-primary")}>{d.getDate()}</div>
               </div>
-              <div className={cn("text-[16px] font-semibold tabular-nums", isToday && "text-primary")}>{d.getDate()}</div>
+              <button
+                type="button"
+                onClick={() => onDayClick?.(d)}
+                className="text-muted-foreground hover:text-primary rounded-md p-1 hover:bg-accent"
+                title="New task on this day"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </button>
             </div>
             <div className="p-2 flex flex-col gap-1.5">
               {list.map((e) => (
-                <div key={e.id} className="rounded-md border border-border bg-card p-2">
+                <button
+                  key={e.id}
+                  type="button"
+                  onClick={() => onEventClick?.(e.id)}
+                  className="text-left rounded-md border border-border bg-card p-2 hover:border-primary/40 transition-colors"
+                >
                   <div className="text-[12.5px] font-medium leading-snug">{e.title}</div>
                   <div className="mt-1 flex items-center justify-between">
                     <span className="text-[11px] text-muted-foreground truncate">{projectName(e.projectId)}</span>
                     <StatusBadge tone={TASK_STATUS_TONES[e.status]} className="!text-[10px]">{TASK_STATUS_LABELS[e.status]}</StatusBadge>
                   </div>
-                </div>
+                </button>
               ))}
               {list.length === 0 && <div className="text-[11.5px] text-muted-foreground text-center py-6">No events</div>}
             </div>
@@ -258,7 +293,7 @@ function WeekGrid({ days, today, eventsByDay, projectName }) {
   );
 }
 
-function AgendaList({ events, projectName }) {
+function AgendaList({ events, projectName, onEventClick }) {
   const grouped = events.reduce((acc, e) => {
     const k = ymd(e.date);
     (acc[k] ||= []).push(e);
@@ -279,7 +314,12 @@ function AgendaList({ events, projectName }) {
             </div>
             <div className="space-y-2">
               {grouped[k].map((e) => (
-                <div key={e.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2.5">
+                <button
+                  key={e.id}
+                  type="button"
+                  onClick={() => onEventClick?.(e.id)}
+                  className="w-full text-left flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2.5 hover:border-primary/40 transition-colors"
+                >
                   <div className="min-w-0">
                     <div className="text-[13.5px] font-medium truncate">{e.title}</div>
                     <div className="text-[11.5px] text-muted-foreground">{e.id} · {projectName(e.projectId)} · {e.type}</div>
@@ -288,7 +328,7 @@ function AgendaList({ events, projectName }) {
                     <StatusBadge dot={false} tone={TASK_PRIORITY_TONES[e.priority]} className="!text-[10.5px]">{e.priority}</StatusBadge>
                     <StatusBadge tone={TASK_STATUS_TONES[e.status]} className="!text-[10.5px]">{TASK_STATUS_LABELS[e.status]}</StatusBadge>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -297,3 +337,6 @@ function AgendaList({ events, projectName }) {
     </div>
   );
 }
+
+
+

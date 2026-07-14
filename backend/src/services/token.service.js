@@ -2,12 +2,13 @@ const jwt = require("jsonwebtoken");
 const env = require("../config/env");
 const { generateToken, sha256, msFromDuration } = require("../utils/crypto");
 
-function signAccessToken({ userId, orgId, societyId, roles, permissions }) {
+function signAccessToken({ userId, orgId, societyId, projectId, roles, permissions }) {
   return jwt.sign(
     {
       sub: String(userId),
       orgId: orgId ? String(orgId) : null,
       societyId: societyId ? String(societyId) : null,
+      projectId: projectId ? String(projectId) : null,
       roles,
       permissions,
     },

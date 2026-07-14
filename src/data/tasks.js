@@ -57,22 +57,3 @@ export const TASKS = [
   { id: "T-1014", title: "Design GA review — Tower A finishes",type: "Task",     status: "review",    priority: "Medium", projectId: "P-004", assignee: assignees[2], dueDate: d(3), estimate: 6, tags: ["Design"] },
   { id: "T-1015", title: "IOA follow-up with BMC",             type: "Task",     status: "blocked",   priority: "High", projectId: "P-003", assignee: assignees[4], dueDate: d(-3), estimate: 5, tags: ["Approvals"] },
 ];
-
-export const TASK_CAPABILITIES = {
-  super_admin: { create: true, edit: true, delete: true },
-  org_admin: { create: true, edit: true, delete: true },
-  project_manager: { create: true, edit: true, delete: true },
-  planner: { create: true, edit: true, delete: false },
-  site_engineer: { create: true, edit: true, delete: false },
-  architect: { create: false, edit: true, delete: false },
-  finance_manager: { create: false, edit: false, delete: false },
-  hr_manager: { create: false, edit: false, delete: false },
-  document_controller: { create: false, edit: false, delete: false },
-  tmi_inspector: { create: true, edit: true, delete: false },
-  vendor: { create: false, edit: false, delete: false },
-  viewer: { create: false, edit: false, delete: false },
-};
-
-export function taskCapsFor(roleId) {
-  return TASK_CAPABILITIES[roleId] ?? { create: false, edit: false, delete: false };
-}

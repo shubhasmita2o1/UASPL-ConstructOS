@@ -25,7 +25,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOrganizations, organizationsStore } from "@/hooks/useOrganizationsStore";
-import { ORG_PLANS, ORG_STATUSES, ORG_STATUS_TONE, orgCapsFor } from "@/data/organizations";
+import { ORG_PLANS, ORG_STATUSES, ORG_STATUS_TONE } from "@/data/organizations";
 import { initials } from "@/utils/format";
 import { cn } from "@/lib/utils";
 
@@ -33,8 +33,14 @@ const PAGE_SIZE = 6;
 
 export default function OrganizationsListPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const caps = orgCapsFor(user?.role);
+  const { hasPermission } = useAuth();
+  const caps = {
+    create: hasPermission("organization.create"),
+    edit: hasPermission("organization.edit"),
+    delete: hasPermission("organization.delete"),
+    assign: hasPermission("organization.assign"),
+    status: hasPermission("organization.status"),
+  };
   const organizations = useOrganizations();
 
   const [view, setView] = useState("list");

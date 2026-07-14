@@ -13,6 +13,7 @@ export function AuthProvider({ children }) {
   const [organizations, setOrganizations] = useState([]);
   const [organization, setOrganization] = useState(null);
   const [society, setSociety] = useState(null);
+  const [project, setProjectState] = useState(null);
 
   const refreshTimerRef = useRef(null);
 
@@ -22,6 +23,7 @@ export function AuthProvider({ children }) {
     setOrganizations([]);
     setOrganization(null);
     setSociety(null);
+    setProjectState(null);
     if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
   }, []);
 
@@ -46,6 +48,7 @@ export function AuthProvider({ children }) {
     setOrganizations(data.organizations || []);
     setOrganization(data.organization || null);
     setSociety(data.society || null);
+    setProjectState(data.project || null);
     scheduleSilentRefresh(data.accessTokenExpiresAt);
     setStatus("authenticated");
   }, [scheduleSilentRefresh]);
@@ -77,7 +80,7 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async ({ identifier, email, password, remember }) => {
     const data = await apiClient.post("/auth/login", { identifier: identifier ?? email, password, remember: !!remember });
-    applySession({ ...data, organization: null, society: null });
+    applySession({ ...data, organization: null, society: null, project: null });
     return data;
   }, [applySession]);
 
@@ -118,6 +121,7 @@ export function AuthProvider({ children }) {
     organizations,
     organization,
     society,
+    project,
     login,
     logout,
     refreshMe,
@@ -128,7 +132,7 @@ export function AuthProvider({ children }) {
     hasAnyPermission,
     hasAllPermissions,
   }), [
-    status, user, permissions, organizations, organization, society,
+    status, user, permissions, organizations, organization, society, project,
     login, logout, refreshMe, forgotPassword, resetPassword, changePassword,
     hasPermission, hasAnyPermission, hasAllPermissions,
   ]);

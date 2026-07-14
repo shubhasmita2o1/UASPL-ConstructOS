@@ -14,6 +14,7 @@ function authenticate(req, res, next) {
       id: payload.sub,
       orgId: payload.orgId || null,
       societyId: payload.societyId || null,
+      projectId: payload.projectId || null,
       roles: payload.roles || [],
       permissions: payload.permissions || [],
       accessTokenExpiresAt: new Date(payload.exp * 1000).toISOString(),

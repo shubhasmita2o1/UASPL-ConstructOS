@@ -4,7 +4,48 @@ const ApiResponse = require("../utils/ApiResponse");
 const { User, UserRole } = require("../models");
 const auditService = require("../services/audit.service");
 const authService = require("../services/auth.service");
+const permissionService = require("../services/permission.service");
 const { generateToken } = require("../utils/crypto");
+
+/**
+ * Organizations a target user belongs to, derived from their active role
+ * assignments (UserRole.organization is denormalized onto every assignment,
+ * see database/seed.js). Used to scope-check user-management actions below.
+ */
+async function getUserOrganizationIds(userId) {
+  const orgIds = await UserRole.find({
+    user: userId,
+    isActive: true,
+    organization: { $ne: null },
+  }).distinct("organization");
+  return orgIds.map(String);
+}
+
+/**
+ * Asserts the caller has access to at least one organization the target user
+ * belongs to. Closes the "any user.view holder can list/fetch every user on
+ * the platform" gap — Org Admins are confined to users in their own org.
+ */
+async function assertCallerCanManage(reqUser, targetUserId) {
+  const orgIds = await getUserOrganizationIds(targetUserId);
+
+  if (orgIds.length === 0) {
+    // No organization-scoped assignment (e.g. Super Admin, or a brand-new
+    // user with no role yet) — only global-scope callers may act on them.
+    return permissionService.assertScopeAccess(reqUser, {});
+  }
+
+  let lastError = null;
+  for (const organization of orgIds) {
+    try {
+      await permissionService.assertScopeAccess(reqUser, { organization });
+      return;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError;
+}
 
 async function withRoles(users) {
   const list = Array.isArray(users) ? users : [users];
@@ -39,11 +80,20 @@ const list = catchAsync(async (req, res) => {
     filter.$or = [{ name: regex }, { email: regex }, { employeeId: regex }];
   }
 
-  let userIds = null;
+  // Non-global callers only see users with an active role assignment in an
+  // organization they can access (see permissionService.assertScopeAccess).
+  const { isGlobal, organizations } = await permissionService.buildAccessContext(req.user.id);
+  const idFilters = [];
+  if (!isGlobal) {
+    const orgIds = organizations.map((o) => o._id);
+    idFilters.push(await UserRole.find({ isActive: true, organization: { $in: orgIds } }).distinct("user"));
+  }
   if (role) {
-    const roleAssignments = await UserRole.find({ role, isActive: true }).distinct("user");
-    userIds = roleAssignments.map(String);
-    filter._id = { $in: userIds };
+    idFilters.push(await UserRole.find({ role, isActive: true }).distinct("user"));
+  }
+  if (idFilters.length) {
+    const [first, ...rest] = idFilters.map((ids) => new Set(ids.map(String)));
+    filter._id = { $in: [...rest.reduce((acc, s) => new Set([...acc].filter((id) => s.has(id))), first)] };
   }
 
   const [total, users] = await Promise.all([
@@ -63,6 +113,7 @@ const list = catchAsync(async (req, res) => {
 const getOne = catchAsync(async (req, res) => {
   const user = await User.findById(req.params.id).lean();
   if (!user) throw ApiError.notFound("User not found");
+  await assertCallerCanManage(req.user, user._id);
   const enriched = await withRoles(user);
   return new ApiResponse(200, enriched, "OK").send(res);
 });
@@ -84,6 +135,7 @@ const create = catchAsync(async (req, res) => {
 const update = catchAsync(async (req, res) => {
   const user = await User.findById(req.params.id);
   if (!user) throw ApiError.notFound("User not found");
+  await assertCallerCanManage(req.user, user._id);
 
   const { name, title, employeeId, phone, status } = req.body;
   if (name !== undefined) user.name = name;
@@ -103,6 +155,7 @@ const remove = catchAsync(async (req, res) => {
   const user = await User.findById(req.params.id);
   if (!user) throw ApiError.notFound("User not found");
   if (String(user._id) === String(req.user.id)) throw ApiError.badRequest("You cannot delete your own account");
+  await assertCallerCanManage(req.user, user._id);
 
   await UserRole.deleteMany({ user: user._id });
   await authService.revokeAllSessionsForUser(user._id);
@@ -115,6 +168,7 @@ const remove = catchAsync(async (req, res) => {
 const unlock = catchAsync(async (req, res) => {
   const user = await User.findById(req.params.id);
   if (!user) throw ApiError.notFound("User not found");
+  await assertCallerCanManage(req.user, user._id);
 
   user.failedLoginAttempts = 0;
   user.lockUntil = null;
@@ -129,6 +183,7 @@ const lock = catchAsync(async (req, res) => {
   const user = await User.findById(req.params.id);
   if (!user) throw ApiError.notFound("User not found");
   if (String(user._id) === String(req.user.id)) throw ApiError.badRequest("You cannot lock your own account");
+  await assertCallerCanManage(req.user, user._id);
 
   user.status = "locked";
   await user.save();
@@ -141,6 +196,7 @@ const lock = catchAsync(async (req, res) => {
 const resetPassword = catchAsync(async (req, res) => {
   const user = await User.findById(req.params.id);
   if (!user) throw ApiError.notFound("User not found");
+  await assertCallerCanManage(req.user, user._id);
 
   const temporaryPassword = generateToken(9);
   await user.setPassword(temporaryPassword);
@@ -155,6 +211,7 @@ const resetPassword = catchAsync(async (req, res) => {
 const forceLogout = catchAsync(async (req, res) => {
   const user = await User.findById(req.params.id);
   if (!user) throw ApiError.notFound("User not found");
+  await assertCallerCanManage(req.user, user._id);
 
   await authService.revokeAllSessionsForUser(user._id);
 
@@ -167,6 +224,11 @@ const assignRole = catchAsync(async (req, res) => {
   if (!user) throw ApiError.notFound("User not found");
 
   const { role, organization, society, project, building } = req.body;
+  // Caller must have access to the scope being assigned into — otherwise an
+  // Org Admin could grant a role scoped into another tenant, or an unscoped
+  // (organization: null) global role. See permission.service.js:assertScopeAccess.
+  await permissionService.assertScopeAccess(req.user, { organization, society, project });
+
   const assignment = await UserRole.findOneAndUpdate(
     { user: user._id, role, organization: organization || null, society: society || null, project: project || null },
     { $set: { building: building || null, assignedBy: req.user.id, isActive: true } },
@@ -180,6 +242,11 @@ const assignRole = catchAsync(async (req, res) => {
 const revokeRole = catchAsync(async (req, res) => {
   const assignment = await UserRole.findOne({ _id: req.params.userRoleId, user: req.params.id });
   if (!assignment) throw ApiError.notFound("Role assignment not found");
+  await permissionService.assertScopeAccess(req.user, {
+    organization: assignment.organization,
+    society: assignment.society,
+    project: assignment.project,
+  });
 
   assignment.isActive = false;
   await assignment.save();

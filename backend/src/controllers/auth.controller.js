@@ -1,13 +1,20 @@
 const catchAsync = require("../utils/catchAsync");
 const ApiError = require("../utils/ApiError");
 const ApiResponse = require("../utils/ApiResponse");
-const { User, Organization, Society, Session, RefreshToken } = require("../models");
+const { User, Organization, Society, Project, Session, RefreshToken } = require("../models");
 const authService = require("../services/auth.service");
 const permissionService = require("../services/permission.service");
 const mailService = require("../services/mail.service");
 const auditService = require("../services/audit.service");
 const { sha256 } = require("../utils/crypto");
-const { ACCESS_COOKIE, REFRESH_COOKIE, accessCookieOptions, refreshCookieOptions, clearCookieOptions, clearRefreshCookieOptions } = require("../config/cookies");
+const {
+  ACCESS_COOKIE,
+  REFRESH_COOKIE,
+  accessCookieOptions,
+  refreshCookieOptions,
+  clearCookieOptions,
+  clearRefreshCookieOptions,
+} = require("../config/cookies");
 
 function serializeUser(user, roles) {
   return {
@@ -40,23 +47,34 @@ const login = catchAsync(async (req, res) => {
   try {
     user = await authService.authenticateCredentials(identifier, password);
   } catch (err) {
-    await auditService.record({ action: "auth.login", status: "failure", metadata: { identifier }, req });
+    await auditService.record({
+      action: "auth.login",
+      status: "failure",
+      metadata: { identifier },
+      req,
+    });
     throw err;
   }
 
   const session = await authService.createSession({ user, remember, req });
-  const { accessToken, refreshToken, roles, permissions } = await authService.issueTokensForSession({ user, session, remember, req });
+  const { accessToken, refreshToken, roles, permissions } = await authService.issueTokensForSession(
+    { user, session, remember, req },
+  );
   setAuthCookies(res, { accessToken, refreshToken, remember: !!remember });
 
   const { organizations } = await permissionService.buildAccessContext(user._id);
   await auditService.record({ actor: user._id, action: "auth.login", status: "success", req });
 
-  return new ApiResponse(200, {
-    user: serializeUser(user, roles),
-    permissions,
-    organizations,
-    accessTokenExpiresAt: freshAccessTokenExpiresAt(),
-  }, "Signed in").send(res);
+  return new ApiResponse(
+    200,
+    {
+      user: serializeUser(user, roles),
+      permissions,
+      organizations,
+      accessTokenExpiresAt: freshAccessTokenExpiresAt(),
+    },
+    "Signed in",
+  ).send(res);
 });
 
 const logout = catchAsync(async (req, res) => {
@@ -69,29 +87,44 @@ const logout = catchAsync(async (req, res) => {
 
 const refresh = catchAsync(async (req, res) => {
   const rawToken = req.cookies?.[REFRESH_COOKIE];
-  const { accessToken, refreshToken, remember } = await authService.rotateRefreshToken({ rawToken, req });
+  const { accessToken, refreshToken, remember } = await authService.rotateRefreshToken({
+    rawToken,
+    req,
+  });
   setAuthCookies(res, { accessToken, refreshToken, remember });
-  return new ApiResponse(200, { accessTokenExpiresAt: freshAccessTokenExpiresAt() }, "Session refreshed").send(res);
+  return new ApiResponse(
+    200,
+    { accessTokenExpiresAt: freshAccessTokenExpiresAt() },
+    "Session refreshed",
+  ).send(res);
 });
 
 const me = catchAsync(async (req, res) => {
   const user = await User.findById(req.user.id);
   if (!user || user.status !== "active") throw ApiError.unauthorized("Account no longer active");
 
-  const { roles, permissions, organizations } = await permissionService.buildAccessContext(user._id);
-  const [organization, society] = await Promise.all([
+  const { roles, permissions, organizations } = await permissionService.buildAccessContext(
+    user._id,
+  );
+  const [organization, society, project] = await Promise.all([
     req.user.orgId ? Organization.findById(req.user.orgId).lean() : null,
     req.user.societyId ? Society.findById(req.user.societyId).lean() : null,
+    req.user.projectId ? Project.findById(req.user.projectId).lean() : null,
   ]);
 
-  return new ApiResponse(200, {
-    user: serializeUser(user, roles),
-    permissions,
-    organizations,
-    organization: organization || null,
-    society: society || null,
-    accessTokenExpiresAt: req.user.accessTokenExpiresAt,
-  }, "OK").send(res);
+  return new ApiResponse(
+    200,
+    {
+      user: serializeUser(user, roles),
+      permissions,
+      organizations,
+      organization: organization || null,
+      society: society || null,
+      project: project || null,
+      accessTokenExpiresAt: req.user.accessTokenExpiresAt,
+    },
+    "OK",
+  ).send(res);
 });
 
 const listOrganizations = catchAsync(async (req, res) => {
@@ -102,8 +135,18 @@ const listOrganizations = catchAsync(async (req, res) => {
 const listSocieties = catchAsync(async (req, res) => {
   const { organizationId } = req.query;
   if (!organizationId) throw ApiError.badRequest("organizationId is required");
-  const societies = await permissionService.getSocietiesForOrganization(req.user.id, organizationId);
+  const societies = await permissionService.getSocietiesForOrganization(
+    req.user.id,
+    organizationId,
+  );
   return new ApiResponse(200, societies, "OK").send(res);
+});
+
+const listProjects = catchAsync(async (req, res) => {
+  const { societyId } = req.query;
+  if (!societyId) throw ApiError.badRequest("societyId is required");
+  const projects = await permissionService.getProjectsForSociety(req.user.id, societyId);
+  return new ApiResponse(200, projects, "OK").send(res);
 });
 
 const selectOrganization = catchAsync(async (req, res) => {
@@ -119,16 +162,29 @@ const selectOrganization = catchAsync(async (req, res) => {
   const session = await Session.findById(tokenDoc.session);
   session.organization = organizationId;
   session.society = null;
+  session.project = null;
   await session.save();
 
   const user = await User.findById(req.user.id);
   const accessToken = await authService.reissueAccessTokenForSession({ session, user });
   res.cookie(ACCESS_COOKIE, accessToken, accessCookieOptions());
 
-  const societies = await permissionService.getSocietiesForOrganization(req.user.id, organizationId);
-  await auditService.record({ actor: user._id, action: "auth.select_organization", organization: organizationId, req });
+  const societies = await permissionService.getSocietiesForOrganization(
+    req.user.id,
+    organizationId,
+  );
+  await auditService.record({
+    actor: user._id,
+    action: "auth.select_organization",
+    organization: organizationId,
+    req,
+  });
 
-  return new ApiResponse(200, { societies, accessTokenExpiresAt: freshAccessTokenExpiresAt() }, "Organization selected").send(res);
+  return new ApiResponse(
+    200,
+    { societies, accessTokenExpiresAt: freshAccessTokenExpiresAt() },
+    "Organization selected",
+  ).send(res);
 });
 
 const selectSociety = catchAsync(async (req, res) => {
@@ -144,15 +200,65 @@ const selectSociety = catchAsync(async (req, res) => {
 
   const session = await Session.findById(tokenDoc.session);
   session.society = societyId;
+  session.project = null;
   await session.save();
 
   const user = await User.findById(req.user.id);
   const accessToken = await authService.reissueAccessTokenForSession({ session, user });
   res.cookie(ACCESS_COOKIE, accessToken, accessCookieOptions());
 
-  await auditService.record({ actor: user._id, action: "auth.select_society", organization: req.user.orgId, society: societyId, req });
+  await auditService.record({
+    actor: user._id,
+    action: "auth.select_society",
+    organization: req.user.orgId,
+    society: societyId,
+    req,
+  });
 
-  return new ApiResponse(200, { accessTokenExpiresAt: freshAccessTokenExpiresAt() }, "Society selected").send(res);
+  return new ApiResponse(
+    200,
+    { accessTokenExpiresAt: freshAccessTokenExpiresAt() },
+    "Society selected",
+  ).send(res);
+});
+
+const selectProject = catchAsync(async (req, res) => {
+  const { projectId } = req.body;
+  if (!req.user.societyId) throw ApiError.badRequest("Select a society first");
+
+  const accessibleProjects = await permissionService.getProjectsForSociety(
+    req.user.id,
+    req.user.societyId,
+  );
+  const allowed = accessibleProjects.some((p) => String(p._id) === String(projectId));
+  if (!allowed) throw ApiError.forbidden("You do not have access to this project");
+
+  const rawToken = req.cookies?.[REFRESH_COOKIE];
+  const tokenDoc = await RefreshToken.findOne({ tokenHash: sha256(rawToken || "") });
+  if (!tokenDoc) throw ApiError.unauthorized("Session not found");
+
+  const session = await Session.findById(tokenDoc.session);
+  session.project = projectId;
+  await session.save();
+
+  const user = await User.findById(req.user.id);
+  const accessToken = await authService.reissueAccessTokenForSession({ session, user });
+  res.cookie(ACCESS_COOKIE, accessToken, accessCookieOptions());
+
+  await auditService.record({
+    actor: user._id,
+    action: "auth.select_project",
+    organization: req.user.orgId,
+    society: req.user.societyId,
+    metadata: { projectId },
+    req,
+  });
+
+  return new ApiResponse(
+    200,
+    { accessTokenExpiresAt: freshAccessTokenExpiresAt() },
+    "Project selected",
+  ).send(res);
 });
 
 const forgotPassword = catchAsync(async (req, res) => {
@@ -164,7 +270,9 @@ const forgotPassword = catchAsync(async (req, res) => {
     await auditService.record({ actor: user._id, action: "auth.forgot_password", req });
   }
   // Always respond the same way to avoid leaking which emails are registered.
-  return new ApiResponse(200, null, "If that email is registered, a reset link has been sent").send(res);
+  return new ApiResponse(200, null, "If that email is registered, a reset link has been sent").send(
+    res,
+  );
 });
 
 const resetPassword = catchAsync(async (req, res) => {
@@ -206,8 +314,10 @@ module.exports = {
   me,
   listOrganizations,
   listSocieties,
+  listProjects,
   selectOrganization,
   selectSociety,
+  selectProject,
   forgotPassword,
   resetPassword,
   changePassword,

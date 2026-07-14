@@ -13,6 +13,8 @@ function normalize(doc) {
 export function WorkspaceProvider({ children }) {
   const auth = useAuth();
   const [societies, setSocieties] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
   const [switching, setSwitching] = useState(false);
   const autoSelectedOrgRef = useRef(null);
   const autoSelectedSocietyRef = useRef(null);
@@ -20,9 +22,11 @@ export function WorkspaceProvider({ children }) {
   const organizations = useMemo(() => (auth.organizations || []).map(normalize), [auth.organizations]);
   const rawOrg = useMemo(() => normalize(auth.organization), [auth.organization]);
   const rawSociety = useMemo(() => normalize(auth.society), [auth.society]);
+  const rawProject = useMemo(() => normalize(auth.project), [auth.project]);
 
   const org = switching ? null : rawOrg;
   const society = switching ? null : rawSociety;
+  const project = switching ? null : rawProject;
 
   const loadSocieties = useCallback(async (organizationId) => {
     if (!organizationId) {
@@ -35,10 +39,31 @@ export function WorkspaceProvider({ children }) {
     return list;
   }, []);
 
+  const loadProjects = useCallback(async (societyId) => {
+    if (!societyId) {
+      setProjects([]);
+      return [];
+    }
+    setProjectsLoading(true);
+    try {
+      const data = await apiClient.get(`/auth/projects?societyId=${societyId}`);
+      const list = (data || []).map(normalize);
+      setProjects(list);
+      return list;
+    } finally {
+      setProjectsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (rawOrg?.id) loadSocieties(rawOrg.id);
     else setSocieties([]);
   }, [rawOrg?.id, loadSocieties]);
+
+  useEffect(() => {
+    if (rawSociety?.id) loadProjects(rawSociety.id);
+    else setProjects([]);
+  }, [rawSociety?.id, loadProjects]);
 
   const setOrg = useCallback(async (organizationId) => {
     await apiClient.post("/auth/select-organization", { organizationId });
@@ -50,6 +75,12 @@ export function WorkspaceProvider({ children }) {
     await apiClient.post("/auth/select-society", { societyId });
     await auth.refreshMe();
     setSwitching(false);
+  }, [auth]);
+
+  /** Unlike setOrg/setSociety, this never navigates or blanks the workspace — just a state update. */
+  const setProject = useCallback(async (projectId) => {
+    await apiClient.post("/auth/select-project", { projectId });
+    await auth.refreshMe();
   }, [auth]);
 
   const reset = useCallback(() => {
@@ -73,11 +104,24 @@ export function WorkspaceProvider({ children }) {
     }
   }, [auth.isAuthenticated, switching, rawOrg, rawSociety, societies, setSociety]);
 
+  const workspaceActions = useMemo(() => ({
+    setOrganization: setOrg, setSociety, setProject, reset,
+  }), [setOrg, setSociety, setProject, reset]);
+
   const value = useMemo(() => ({
     org, society, societies, organizations,
     orgId: org?.id ?? null, societyId: society?.id ?? null,
     setOrg, setSociety, reset,
-  }), [org, society, societies, organizations, setOrg, setSociety, reset]);
+
+    // Phase 4 addition: project depth (Header, DashboardPage read this — it's
+    // the only way to consume the selected project). currentOrganization/
+    // currentSociety were removed as unused dead code: nothing consumed them,
+    // every real consumer already reads org/society above.
+    currentProject: project,
+    availableProjects: projects,
+    workspaceLoading: switching || projectsLoading,
+    workspaceActions,
+  }), [org, society, societies, organizations, setOrg, setSociety, reset, project, projects, switching, projectsLoading, workspaceActions]);
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }

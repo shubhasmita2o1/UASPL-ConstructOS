@@ -272,22 +272,3 @@ export function commentsFor(id) {
 export function milestonesFor(id) {
   return PROJECT_MILESTONES[id] ?? PROJECT_MILESTONES["P-001"];
 }
-
-export const ROLE_CAPABILITIES = {
-  super_admin: { create: true, edit: true, delete: true },
-  org_admin: { create: true, edit: true, delete: true },
-  project_manager: { create: true, edit: true, delete: false },
-  planner: { create: false, edit: true, delete: false },
-  architect: { create: false, edit: true, delete: false },
-  site_engineer: { create: false, edit: false, delete: false },
-  finance_manager: { create: false, edit: false, delete: false },
-  hr_manager: { create: false, edit: false, delete: false },
-  document_controller: { create: false, edit: false, delete: false },
-  tmi_inspector: { create: false, edit: false, delete: false },
-  vendor: { create: false, edit: false, delete: false },
-  viewer: { create: false, edit: false, delete: false },
-};
-
-export function capsFor(roleId) {
-  return ROLE_CAPABILITIES[roleId] ?? { create: false, edit: false, delete: false };
-}

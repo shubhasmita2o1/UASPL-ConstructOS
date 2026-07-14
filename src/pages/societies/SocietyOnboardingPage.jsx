@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   ChevronLeft, ChevronRight, Save, X, Check, Landmark, Building2,
   FileText, Users2, ClipboardCheck,
@@ -14,8 +14,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 import { ORGANIZATIONS } from "@/data/mockData";
 import { SOCIETY_PHASES, SOCIETY_PHASE_TONE } from "@/data/societies";
+import { societiesStore, useSociety } from "@/hooks/useSocietiesStore";
 import { initials } from "@/utils/format";
 import { cn } from "@/lib/utils";
 
@@ -35,11 +37,43 @@ const EMPTY = {
   notes: "",
 };
 
-export default function SocietyOnboardingPage() {
+export default function SocietyOnboardingPage({ mode = "create" }) {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const { hasPermission } = useAuth();
+  const editing = mode === "edit";
+  const canProceed = editing ? hasPermission("society.edit") : hasPermission("society.create");
+  const existing = useSociety(id);
   const [step, setStep] = useState(0);
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (editing && existing && !loaded) {
+      setForm({
+        ...EMPTY,
+        name: existing.name ?? "",
+        orgId: existing.orgId ?? "",
+        address: existing.address ?? "",
+        city: existing.city ?? "",
+        phase: existing.phase ?? "Feasibility",
+        buildings: existing.buildings != null ? String(existing.buildings) : "",
+        units: existing.units != null ? String(existing.units) : "",
+        consentPct: existing.consentPct != null ? String(existing.consentPct) : "",
+        area: existing.area ?? "",
+        registrationNo: existing.registrationNo && existing.registrationNo !== "—" ? existing.registrationNo : "",
+        registeredOn: existing.registeredOn ?? "",
+        chairperson: existing.chairperson && existing.chairperson !== "—" ? existing.chairperson : "",
+        chairPhone: existing.chairPhone ?? "",
+        secretary: existing.secretary ?? "",
+        secretaryPhone: existing.secretaryPhone ?? "",
+        notes: existing.notes ?? "",
+      });
+      setLoaded(true);
+    }
+  }, [editing, existing, loaded]);
+
 
   const set = (k) => (e) => {
     const value = e?.target ? e.target.value : e;
@@ -77,18 +111,67 @@ export default function SocietyOnboardingPage() {
     for (let i = 0; i < STEPS.length - 1; i++) {
       if (!validateStep(i)) { setStep(i); toast.error("Please complete all required fields"); return; }
     }
-    toast.success(`${form.name} onboarded successfully`);
-    navigate("/app/societies");
+    const payload = {
+      name: form.name.trim(),
+      orgId: form.orgId,
+      address: form.address.trim(),
+      city: form.city.trim(),
+      phase: form.phase,
+      buildings: Number(form.buildings) || 0,
+      units: Number(form.units) || 0,
+      consentPct: Number(form.consentPct) || 0,
+      area: form.area.trim(),
+      registrationNo: form.registrationNo.trim() || "—",
+      registeredOn: form.registeredOn,
+      chairperson: form.chairperson.trim() || "—",
+      chairPhone: form.chairPhone.trim(),
+      secretary: form.secretary.trim(),
+      secretaryPhone: form.secretaryPhone.trim(),
+      notes: form.notes.trim(),
+    };
+    if (editing) {
+      societiesStore.update(id, payload);
+      toast.success(`${form.name} updated`);
+      navigate(`/app/societies/${id}`);
+    } else {
+      societiesStore.create(payload);
+      toast.success(`${form.name} onboarded successfully`);
+      navigate("/app/societies");
+    }
   };
+
+
 
   const orgName = ORGANIZATIONS.find((o) => o.id === form.orgId)?.name ?? "—";
   const progress = useMemo(() => Math.round(((step + 1) / STEPS.length) * 100), [step]);
 
+  if (!canProceed) {
+    return (
+      <PageContainer>
+        <SectionCard title="Not authorized">
+          <p className="text-[13px] text-muted-foreground">Your role does not have permission to {editing ? "edit" : "onboard"} societies.</p>
+        </SectionCard>
+      </PageContainer>
+    );
+  }
+
+  if (editing && !existing) {
+    return (
+      <PageContainer>
+        <SectionCard title="Society not found">
+          <p className="text-[13px] text-muted-foreground mb-3">The society you're trying to edit doesn't exist or was removed.</p>
+          <Button variant="outline" size="sm" onClick={() => navigate("/app/societies")}>Back to societies</Button>
+        </SectionCard>
+      </PageContainer>
+    );
+  }
+
+
   return (
     <PageContainer>
       <PageHeader
-        title="Onboard a society"
-        description="Register a new cooperative housing society and capture the details needed to begin delivery."
+        title={editing ? "Edit society" : "Onboard a society"}
+        description={editing ? "Update this society's profile, structure, registration and committee details." : "Register a new cooperative housing society and capture the details needed to begin delivery."}
         actions={
           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => navigate("/app/societies")}>
             <ChevronLeft className="h-3.5 w-3.5" /> Back
@@ -268,7 +351,7 @@ export default function SocietyOnboardingPage() {
                 </Button>
               ) : (
                 <Button type="button" size="sm" onClick={submit} className="gap-1.5">
-                  <Save className="h-3.5 w-3.5" /> Onboard society
+                  <Save className="h-3.5 w-3.5" /> {editing ? "Save changes" : "Onboard society"}
                 </Button>
               )}
             </div>

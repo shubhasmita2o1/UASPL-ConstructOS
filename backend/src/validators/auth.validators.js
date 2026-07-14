@@ -28,6 +28,10 @@ const selectSocietyRules = [
   body("societyId").isMongoId().withMessage("Valid societyId is required"),
 ];
 
+const selectProjectRules = [
+  body("projectId").isMongoId().withMessage("Valid projectId is required"),
+];
+
 module.exports = {
   loginRules,
   forgotPasswordRules,
@@ -35,4 +39,5 @@ module.exports = {
   changePasswordRules,
   selectOrganizationRules,
   selectSocietyRules,
+  selectProjectRules,
 };

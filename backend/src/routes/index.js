@@ -6,6 +6,7 @@ const userRoutes = require("./user.routes");
 const organizationRoutes = require("./organization.routes");
 const societyRoutes = require("./society.routes");
 const auditLogRoutes = require("./auditLog.routes");
+const dashboardRoutes = require("./dashboard.routes");
 
 const router = express.Router();
 
@@ -18,5 +19,6 @@ router.use("/users", userRoutes);
 router.use("/organizations", organizationRoutes);
 router.use("/societies", societyRoutes);
 router.use("/audit-logs", auditLogRoutes);
+router.use("/dashboard", dashboardRoutes);
 
 module.exports = router;

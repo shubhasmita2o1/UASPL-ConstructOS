@@ -72,21 +72,82 @@ export function activityForOrg(id) {
   return ORG_ACTIVITY[id] ?? [{ id: 1, user: "System", action: "created organization", target: id, time: "just now" }];
 }
 
-export const ORG_ROLE_CAPABILITIES = {
-  super_admin: { create: true, edit: true, delete: true, assign: true, status: true },
-  org_admin:   { create: false, edit: true, delete: false, assign: true, status: true },
-  project_manager: { create: false, edit: false, delete: false, assign: false, status: false },
-  planner: { create: false, edit: false, delete: false, assign: false, status: false },
-  architect: { create: false, edit: false, delete: false, assign: false, status: false },
-  site_engineer: { create: false, edit: false, delete: false, assign: false, status: false },
-  finance_manager: { create: false, edit: false, delete: false, assign: false, status: false },
-  hr_manager: { create: false, edit: false, delete: false, assign: false, status: false },
-  document_controller: { create: false, edit: false, delete: false, assign: false, status: false },
-  tmi_inspector: { create: false, edit: false, delete: false, assign: false, status: false },
-  vendor: { create: false, edit: false, delete: false, assign: false, status: false },
-  viewer: { create: false, edit: false, delete: false, assign: false, status: false },
+// ---------- Invitations ----------
+export const INVITE_ROLES = ["org_admin", "project_manager", "finance_manager", "hr_manager", "document_controller", "viewer"];
+export const INVITE_STATUSES = ["Pending", "Accepted", "Expired", "Revoked"];
+export const INVITE_STATUS_TONE = { Pending: "info", Accepted: "success", Expired: "warning", Revoked: "destructive" };
+
+const daysFromNow = (d) => {
+  const dt = new Date(); dt.setDate(dt.getDate() + d); return dt.toISOString();
 };
 
-export function orgCapsFor(roleId) {
-  return ORG_ROLE_CAPABILITIES[roleId] ?? { create: false, edit: false, delete: false, assign: false, status: false };
-}
+export const ORG_INVITATIONS = {
+  "org-uaspl-mumbai": [
+    { id: "inv-m-1", email: "priya.shah@uaspl.in",  role: "project_manager",  status: "Pending",  invitedBy: "Neha Kulkarni",  createdAt: daysFromNow(-2), expiresAt: daysFromNow(5),  token: "inv_a4f9c81b" },
+    { id: "inv-m-2", email: "vikram.rao@uaspl.in",   role: "finance_manager",  status: "Accepted", invitedBy: "Neha Kulkarni",  createdAt: daysFromNow(-9), expiresAt: daysFromNow(-2), token: "inv_88b0e132" },
+    { id: "inv-m-3", email: "external@vendor.co",    role: "viewer",           status: "Expired",  invitedBy: "Aarav Deshmukh", createdAt: daysFromNow(-30),expiresAt: daysFromNow(-16),token: "inv_ff9910aa" },
+  ],
+  "org-uaspl-pune": [
+    { id: "inv-p-1", email: "sneha.deo@uaspl.in",    role: "project_manager",  status: "Pending",  invitedBy: "Aditya Joshi",   createdAt: daysFromNow(-1), expiresAt: daysFromNow(6),  token: "inv_2201ccde" },
+  ],
+  "org-mmr-devcorp": [],
+};
+
+// ---------- KYC documents ----------
+export const KYC_STATUSES = ["Pending", "Verified", "Rejected", "Expired"];
+export const KYC_STATUS_TONE = { Pending: "warning", Verified: "success", Rejected: "destructive", Expired: "neutral" };
+export const KYC_DOC_TYPES = ["PAN Card", "GST Certificate", "Certificate of Incorporation", "MSME Registration", "Cancelled Cheque", "Address Proof", "Director KYC", "Authorization Letter"];
+
+export const ORG_KYC = {
+  "org-uaspl-mumbai": [
+    { id: "kyc-m-1", type: "PAN Card",                    fileName: "uaspl-pan.pdf",             sizeKb: 214, mime: "application/pdf", status: "Verified", uploadedBy: "Neha Kulkarni", uploadedAt: daysFromNow(-120), verifiedAt: daysFromNow(-118), notes: "Verified against MCA records." },
+    { id: "kyc-m-2", type: "GST Certificate",             fileName: "uaspl-gst-27AABCU.pdf",     sizeKb: 512, mime: "application/pdf", status: "Verified", uploadedBy: "Neha Kulkarni", uploadedAt: daysFromNow(-118), verifiedAt: daysFromNow(-117), notes: "" },
+    { id: "kyc-m-3", type: "Certificate of Incorporation",fileName: "uaspl-coi.pdf",             sizeKb: 890, mime: "application/pdf", status: "Verified", uploadedBy: "Neha Kulkarni", uploadedAt: daysFromNow(-118), verifiedAt: daysFromNow(-117), notes: "" },
+    { id: "kyc-m-4", type: "Cancelled Cheque",            fileName: "hdfc-cheque.jpg",           sizeKb: 178, mime: "image/jpeg",      status: "Pending",  uploadedBy: "Neha Kulkarni", uploadedAt: daysFromNow(-2),   verifiedAt: null, notes: "Awaiting bank verification." },
+  ],
+  "org-uaspl-pune": [
+    { id: "kyc-p-1", type: "PAN Card",                    fileName: "uaspl-pune-pan.pdf",        sizeKb: 210, mime: "application/pdf", status: "Verified", uploadedBy: "Aditya Joshi", uploadedAt: daysFromNow(-90), verifiedAt: daysFromNow(-89),  notes: "" },
+    { id: "kyc-p-2", type: "GST Certificate",             fileName: "uaspl-pune-gst.pdf",        sizeKb: 498, mime: "application/pdf", status: "Expired",  uploadedBy: "Aditya Joshi", uploadedAt: daysFromNow(-400),verifiedAt: daysFromNow(-398), notes: "Renewal required." },
+  ],
+  "org-mmr-devcorp": [
+    { id: "kyc-d-1", type: "PAN Card",                    fileName: "mmr-pan.pdf",               sizeKb: 232, mime: "application/pdf", status: "Pending",  uploadedBy: "Rhea Kapoor", uploadedAt: daysFromNow(-1),   verifiedAt: null, notes: "" },
+    { id: "kyc-d-2", type: "Certificate of Incorporation",fileName: "mmr-coi.pdf",               sizeKb: 812, mime: "application/pdf", status: "Rejected", uploadedBy: "Rhea Kapoor", uploadedAt: daysFromNow(-4),   verifiedAt: null, notes: "Blurred scan — please re-upload." },
+  ],
+};
+
+// ---------- Audit log ----------
+export const AUDIT_ACTIONS = ["created", "updated", "status_changed", "society_assigned", "society_unassigned", "invited_member", "invite_revoked", "kyc_uploaded", "kyc_verified", "kyc_rejected"];
+export const AUDIT_TONE = {
+  created: "primary", updated: "info", status_changed: "warning",
+  society_assigned: "success", society_unassigned: "neutral",
+  invited_member: "info", invite_revoked: "destructive",
+  kyc_uploaded: "info", kyc_verified: "success", kyc_rejected: "destructive",
+};
+export const AUDIT_LABEL = {
+  created: "Created", updated: "Updated", status_changed: "Status changed",
+  society_assigned: "Society assigned", society_unassigned: "Society unassigned",
+  invited_member: "Invitation sent", invite_revoked: "Invitation revoked",
+  kyc_uploaded: "KYC uploaded", kyc_verified: "KYC verified", kyc_rejected: "KYC rejected",
+};
+
+export const ORG_AUDIT = {
+  "org-uaspl-mumbai": [
+    { id: "a-m-1", action: "created",           actor: "System",          detail: "Organization onboarded to ConstructOS", at: daysFromNow(-365) },
+    { id: "a-m-2", action: "status_changed",    actor: "Aarav Deshmukh",  detail: "Onboarding → Active",                    at: daysFromNow(-350) },
+    { id: "a-m-3", action: "kyc_verified",      actor: "Compliance Bot",  detail: "GST Certificate verified",              at: daysFromNow(-117) },
+    { id: "a-m-4", action: "society_assigned",  actor: "Rohan Iyer",      detail: "Green Oaks CHS assigned",               at: daysFromNow(-40) },
+    { id: "a-m-5", action: "invited_member",    actor: "Neha Kulkarni",   detail: "priya.shah@uaspl.in · project_manager", at: daysFromNow(-2) },
+    { id: "a-m-6", action: "updated",           actor: "Neha Kulkarni",   detail: "Website + contact phone updated",       at: daysFromNow(-1) },
+  ],
+  "org-uaspl-pune": [
+    { id: "a-p-1", action: "created",           actor: "System",          detail: "Organization onboarded to ConstructOS", at: daysFromNow(-300) },
+    { id: "a-p-2", action: "status_changed",    actor: "Aditya Joshi",    detail: "Onboarding → Active",                    at: daysFromNow(-290) },
+    { id: "a-p-3", action: "society_assigned",  actor: "Aditya Joshi",    detail: "Sahyadri CHS assigned",                 at: daysFromNow(-30) },
+    { id: "a-p-4", action: "kyc_rejected",      actor: "Compliance Bot",  detail: "GST Certificate expired — renewal required", at: daysFromNow(-10) },
+  ],
+  "org-mmr-devcorp": [
+    { id: "a-d-1", action: "created",           actor: "System",          detail: "Organization onboarded to ConstructOS", at: daysFromNow(-14) },
+    { id: "a-d-2", action: "kyc_uploaded",      actor: "Rhea Kapoor",     detail: "PAN Card uploaded",                     at: daysFromNow(-1) },
+    { id: "a-d-3", action: "kyc_rejected",      actor: "Compliance Bot",  detail: "Certificate of Incorporation blurry",   at: daysFromNow(-4) },
+  ],
+};

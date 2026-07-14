@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
-  Plus, Search, Filter, List, KanbanSquare, X, MoreHorizontal, Pencil, Trash2,
+  Plus, Search, Filter, List, KanbanSquare, X, MoreHorizontal, Pencil, Trash2, ExternalLink,
   ListChecks, CheckCircle2, AlertTriangle, Clock, CalendarDays, Download,
 } from "lucide-react";
 import { PageContainer, PageHeader } from "@/components/common/PageHeader";
@@ -32,7 +33,7 @@ import { useTasks, tasksStore } from "@/hooks/useTasksStore";
 import { useProjects } from "@/hooks/useProjectsStore";
 import {
   TASK_STATUSES, TASK_STATUS_LABELS, TASK_STATUS_TONES,
-  TASK_PRIORITIES, TASK_PRIORITY_TONES, TASK_TYPES, TASK_ASSIGNEES, taskCapsFor,
+  TASK_PRIORITIES, TASK_PRIORITY_TONES, TASK_TYPES, TASK_ASSIGNEES,
 } from "@/data/tasks";
 import { cn } from "@/lib/utils";
 
@@ -47,10 +48,16 @@ function isOverdue(iso, status) {
 }
 
 export default function TasksPage() {
-  const { user } = useAuth();
-  const caps = taskCapsFor(user?.role);
+  const { hasPermission } = useAuth();
+  const caps = {
+    create: hasPermission("task.create"),
+    edit: hasPermission("task.edit"),
+    delete: hasPermission("task.delete"),
+  };
   const tasks = useTasks();
   const projects = useProjects();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [view, setView] = useState("list");
   const [q, setQ] = useState("");
@@ -60,6 +67,27 @@ export default function TasksPage() {
   const [assignee, setAssignee] = useState("all");
   const [editing, setEditing] = useState(null); // task or {} for new
   const [toDelete, setToDelete] = useState(null);
+
+  // Deep links: ?new=1&date=YYYY-MM-DD&projectId=P-001  and  ?edit=T-1001
+  useEffect(() => {
+    const isNew = searchParams.get("new");
+    const editId = searchParams.get("edit");
+    if (isNew) {
+      const date = searchParams.get("date") ?? undefined;
+      const pid = searchParams.get("projectId") ?? undefined;
+      setEditing({ dueDate: date, projectId: pid });
+      const next = new URLSearchParams(searchParams);
+      next.delete("new"); next.delete("date"); next.delete("projectId");
+      setSearchParams(next, { replace: true });
+    } else if (editId) {
+      const found = tasks.find((t) => t.id === editId);
+      if (found) setEditing(found);
+      const next = new URLSearchParams(searchParams);
+      next.delete("edit");
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const projectName = (id) => projects.find((p) => p.id === id)?.name ?? "—";
 
@@ -242,6 +270,9 @@ function RowActions({ task, caps, onEdit, onDelete }) {
         <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem asChild>
+          <Link to={`/app/tasks/${task.id}`}><ExternalLink className="h-3.5 w-3.5 mr-2" /> Open details</Link>
+        </DropdownMenuItem>
         {caps.edit && (
           <DropdownMenuItem onClick={() => onEdit(task)}>
             <Pencil className="h-3.5 w-3.5 mr-2" /> Edit
@@ -285,10 +316,10 @@ function ListView({ tasks, caps, projectName, onEdit, onDelete }) {
           {tasks.map((t) => (
             <tr key={t.id} className="border-t border-border hover:bg-accent/40 transition-colors">
               <td className="px-5 py-3">
-                <button onClick={() => caps.edit && onEdit(t)} className="text-left">
+                <Link to={`/app/tasks/${t.id}`} className="text-left block">
                   <div className="font-semibold text-foreground hover:text-primary">{t.title}</div>
                   <div className="text-[11.5px] text-muted-foreground">{t.id} · {t.type}</div>
-                </button>
+                </Link>
               </td>
               <td className="px-2 py-3 text-muted-foreground">{projectName(t.projectId)}</td>
               <td className="px-2 py-3"><StatusBadge tone={TASK_STATUS_TONES[t.status]}>{TASK_STATUS_LABELS[t.status]}</StatusBadge></td>
@@ -314,6 +345,7 @@ function ListView({ tasks, caps, projectName, onEdit, onDelete }) {
 }
 
 function KanbanView({ tasks, caps, projectName, onEdit }) {
+  const navigate = useNavigate();
   const grouped = TASK_STATUSES.reduce((acc, s) => {
     acc[s] = tasks.filter((t) => t.status === s);
     return acc;
@@ -344,7 +376,7 @@ function KanbanView({ tasks, caps, projectName, onEdit }) {
                 <div key={t.id}
                      draggable={caps.edit}
                      onDragStart={(e) => onDragStart(e, t.id)}
-                     onClick={() => caps.edit && onEdit(t)}
+                     onClick={() => navigate(`/app/tasks/${t.id}`)}
                      className="rounded-lg border border-border bg-card p-3 shadow-sm cursor-pointer hover:border-primary/40">
                   <div className="flex items-start justify-between gap-2">
                     <div className="font-medium text-[13px] leading-snug">{t.title}</div>

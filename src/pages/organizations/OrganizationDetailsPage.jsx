@@ -12,6 +12,7 @@ import EmptyState from "@/components/common/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
@@ -28,16 +29,28 @@ import {
   useOrganization, organizationsStore, useSocietyLibrary,
 } from "@/hooks/useOrganizationsStore";
 import {
-  ORG_STATUSES, ORG_STATUS_TONE, activityForOrg, orgCapsFor,
+  ORG_STATUSES, ORG_STATUS_TONE, activityForOrg,
 } from "@/data/organizations";
+import InvitationsSection from "@/components/organization/InvitationsSection";
+import KycSection from "@/components/organization/KycSection";
+import AuditLogSection from "@/components/organization/AuditLogSection";
 import { initials } from "@/utils/format";
 import { cn } from "@/lib/utils";
 
 export default function OrganizationDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const caps = orgCapsFor(user?.role);
+  const { hasPermission } = useAuth();
+  const caps = {
+    create: hasPermission("organization.create"),
+    edit: hasPermission("organization.edit"),
+    delete: hasPermission("organization.delete"),
+    assign: hasPermission("organization.assign"),
+    status: hasPermission("organization.status"),
+    invite: hasPermission("organization.invite"),
+    kyc: hasPermission("organization.kyc"),
+    audit: hasPermission("organization.audit"),
+  };
   const org = useOrganization(id);
   const societyLib = useSocietyLibrary();
 
@@ -175,6 +188,15 @@ export default function OrganizationDetailsPage() {
         <StatCard label="Status" value={org.status} icon={Power} tone={ORG_STATUS_TONE[org.status] === "success" ? "success" : ORG_STATUS_TONE[org.status] === "warning" ? "warning" : "info"} />
       </div>
 
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="invitations">Invitations</TabsTrigger>
+          <TabsTrigger value="kyc">KYC</TabsTrigger>
+          <TabsTrigger value="audit">Audit log</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="mt-0">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           {/* Assigned societies */}
@@ -326,6 +348,18 @@ export default function OrganizationDetailsPage() {
           </SectionCard>
         </div>
       </div>
+        </TabsContent>
+
+        <TabsContent value="invitations" className="mt-0">
+          <InvitationsSection org={org} caps={caps} />
+        </TabsContent>
+        <TabsContent value="kyc" className="mt-0">
+          <KycSection org={org} caps={caps} />
+        </TabsContent>
+        <TabsContent value="audit" className="mt-0">
+          <AuditLogSection org={org} caps={caps} />
+        </TabsContent>
+      </Tabs>
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>

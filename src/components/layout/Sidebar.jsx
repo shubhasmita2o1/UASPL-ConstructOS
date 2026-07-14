@@ -1,6 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { HardHat, ChevronsLeft } from "lucide-react";
-import { NAV_SECTIONS } from "@/constants/navigation";
+import { buildVisibleNavSections } from "@/constants/navigation";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,12 +9,7 @@ export default function Sidebar({ collapsed, onToggle }) {
   const { pathname } = useLocation();
   const { hasAnyPermission } = useAuth();
 
-  const visibleSections = NAV_SECTIONS
-    .map((section) => ({
-      ...section,
-      items: section.items.filter((item) => !item.perm || hasAnyPermission([].concat(item.perm))),
-    }))
-    .filter((section) => section.items.length > 0);
+  const visibleSections = buildVisibleNavSections(hasAnyPermission);
 
   return (
     <aside

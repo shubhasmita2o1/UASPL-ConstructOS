@@ -20,9 +20,11 @@ import OrganizationsListPage from "@/pages/organizations/OrganizationsListPage";
 import OrganizationDetailsPage from "@/pages/organizations/OrganizationDetailsPage";
 import OrganizationFormPage from "@/pages/organizations/OrganizationFormPage";
 import TasksPage from "@/pages/tasks/TasksPage";
+import TaskDetailsPage from "@/pages/tasks/TaskDetailsPage";
 import CalendarPage from "@/pages/calender/CalendarPage";
 import SocietiesListPage from "@/pages/societies/SocietiesListPage";
 import SocietyOnboardingPage from "@/pages/societies/SocietyOnboardingPage";
+import SocietyDetailsPage from "@/pages/societies/SocietyDetailsPage";
 import ActivityCenterPage from "@/pages/activity/ActivityCenterPage";
 import UsersListPage from "@/pages/admin/users/UsersListPage";
 import UserFormPage from "@/pages/admin/users/UserFormPage";
@@ -83,19 +85,31 @@ export default function App() {
           <Route path="/app" element={<AppLayout />}>
             <Route index element={<Navigate to="/app/dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="projects" element={<ProjectsListPage />} />
-            <Route path="projects/new" element={<ProjectFormPage mode="create" />} />
-            <Route path="projects/:id" element={<ProjectDetailsPage />} />
-            <Route path="projects/:id/edit" element={<ProjectFormPage mode="edit" />} />
-            <Route path="organizations" element={<OrganizationsListPage />} />
-            <Route path="organizations/new" element={<OrganizationFormPage mode="create" />} />
-            <Route path="organizations/:id" element={<OrganizationDetailsPage />} />
-            <Route path="organizations/:id/edit" element={<OrganizationFormPage mode="edit" />} />
-            <Route path="tasks" element={<TasksPage />} />
             <Route path="calendar" element={<CalendarPage />} />
-            <Route path="societies" element={<SocietiesListPage />} />
-            <Route path="societies/onboard" element={<SocietyOnboardingPage />} />
             <Route path="activity" element={<ActivityCenterPage />} />
+
+            <Route element={<RequirePermission anyOf={["project.view"]} />}>
+              <Route path="projects" element={<ProjectsListPage />} />
+              <Route path="projects/new" element={<ProjectFormPage mode="create" />} />
+              <Route path="projects/:id" element={<ProjectDetailsPage />} />
+              <Route path="projects/:id/edit" element={<ProjectFormPage mode="edit" />} />
+            </Route>
+            <Route element={<RequirePermission anyOf={["organization.view"]} />}>
+              <Route path="organizations" element={<OrganizationsListPage />} />
+              <Route path="organizations/new" element={<OrganizationFormPage mode="create" />} />
+              <Route path="organizations/:id" element={<OrganizationDetailsPage />} />
+              <Route path="organizations/:id/edit" element={<OrganizationFormPage mode="edit" />} />
+            </Route>
+            <Route element={<RequirePermission anyOf={["society.view"]} />}>
+              <Route path="societies" element={<SocietiesListPage />} />
+              <Route path="societies/onboard" element={<SocietyOnboardingPage mode="create" />} />
+              <Route path="societies/:id" element={<SocietyDetailsPage />} />
+              <Route path="societies/:id/edit" element={<SocietyOnboardingPage mode="edit" />} />
+            </Route>
+            <Route element={<RequirePermission anyOf={["task.view"]} />}>
+              <Route path="tasks" element={<TasksPage />} />
+              <Route path="tasks/:id" element={<TaskDetailsPage />} />
+            </Route>
 
             <Route element={<RequirePermission anyOf={["role.manage", "role.view", "roles.manage", "permissions.manage"]} />}>
               <Route path="roles" element={<RolesListPage />} />
@@ -114,11 +128,17 @@ export default function App() {
             </Route>
 
             {FLAT_NAV.filter((n) => !WIRED_PATHS.includes(n.to)).map((n) => (
-              <Route
-                key={n.to}
-                path={n.to.replace("/app/", "")}
-                element={<ModulePlaceholderPage title={n.label} icon={n.icon} />}
-              />
+              n.perm ? (
+                <Route key={n.to} element={<RequirePermission anyOf={[].concat(n.perm)} />}>
+                  <Route path={n.to.replace("/app/", "")} element={<ModulePlaceholderPage title={n.label} icon={n.icon} />} />
+                </Route>
+              ) : (
+                <Route
+                  key={n.to}
+                  path={n.to.replace("/app/", "")}
+                  element={<ModulePlaceholderPage title={n.label} icon={n.icon} />}
+                />
+              )
             ))}
           </Route>
         </Route>

@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -b /c/Users/ADMIN/AppData/Local/Temp/claude/c--Shubhasmita-UASPL-UASPL/39bec78f-a487-4129-a096-6277ddc9c57f/scratchpad/rat/orgadmin.jar http://localhost:5000/api/societies?organizationId=6a55e24fd162e33a4be0f804)",
+      "Bash(node -e \"console.log\\(JSON.parse\\(require\\('fs'\\).readFileSync\\(0,'utf8'\\)\\).data.map\\(s=>s.name\\)\\)\")",
+      "Bash(curl -s -o /dev/null -w 'superadmin refresh: %{http_code}\\\\n' -b /c/Users/ADMIN/AppData/Local/Temp/claude/c--Shubhasmita-UASPL-UASPL/39bec78f-a487-4129-a096-6277ddc9c57f/scratchpad/rat/superadmin.jar -c /c/Users/ADMIN/AppData/Local/Temp/claude/c--Shubhasmita-UASPL-UASPL/39bec78f-a487-4129-a096-6277ddc9c57f/scratchpad/rat/superadmin.jar -X POST http://localhost:5000/api/auth/refresh)",
+      "Bash(node -e ' *)",
+      "Bash(curl -s -b /c/Users/ADMIN/AppData/Local/Temp/claude/c--Shubhasmita-UASPL-UASPL/39bec78f-a487-4129-a096-6277ddc9c57f/scratchpad/rat/superadmin.jar http://localhost:5000/api/organizations)",
+      "Bash(node -e \"console.log\\('societies now:', JSON.parse\\(require\\('fs'\\).readFileSync\\(0,'utf8'\\)\\).data.map\\(s=>s.name\\)\\)\")",
+      "Bash(curl -s -o /dev/null -w \"backend localhost: %{http_code}\\\\n\" http://localhost:5000/api/health)",
+      "Bash(curl -s -o /dev/null -w \"frontend localhost: %{http_code}\\\\n\" http://localhost:8080/)",
+      "Bash(curl -s -o /dev/null -w \"backend LAN: %{http_code}\\\\n\" http://192.168.1.9:5000/api/health --max-time 5)",
+      "Bash(curl -s -o /dev/null -w \"frontend LAN: %{http_code}\\\\n\" http://192.168.1.9:8080/ --max-time 5)",
+      "Bash(ipconfig)",
+      "Bash(curl -s -o /dev/null -w 'orgadmin refresh: %{http_code}\\\\n' -b /c/Users/ADMIN/AppData/Local/Temp/claude/c--Shubhasmita-UASPL-UASPL/39bec78f-a487-4129-a096-6277ddc9c57f/scratchpad/rat/orgadmin.jar -c /c/Users/ADMIN/AppData/Local/Temp/claude/c--Shubhasmita-UASPL-UASPL/39bec78f-a487-4129-a096-6277ddc9c57f/scratchpad/rat/orgadmin.jar -X POST http://localhost:5000/api/auth/refresh)",
+      "Bash(curl -s -b /c/Users/ADMIN/AppData/Local/Temp/claude/c--Shubhasmita-UASPL-UASPL/39bec78f-a487-4129-a096-6277ddc9c57f/scratchpad/rat/orgadmin.jar http://localhost:5000/api/auth/me)",
+      "Bash(node -e \"console.log\\(JSON.parse\\(require\\('fs'\\).readFileSync\\(0,'utf8'\\)\\).data.permissions.filter\\(p=>p.startsWith\\('society'\\)\\)\\)\")",
+      "Bash(node -e \"console.log\\(JSON.parse\\(require\\('fs'\\).readFileSync\\(0,'utf8'\\)\\).data.permissions.filter\\(p=>p.startsWith\\('organization'\\)\\)\\)\")"
+    ]
+  }
+}

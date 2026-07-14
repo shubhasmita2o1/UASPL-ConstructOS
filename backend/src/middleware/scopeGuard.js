@@ -3,7 +3,8 @@ const ApiError = require("../utils/ApiError");
 /** Ensures the verified access token carries an organization scope. */
 function requireOrganization(req, res, next) {
   if (!req.user) return next(ApiError.unauthorized("Not authenticated"));
-  if (!req.user.orgId) return next(ApiError.badRequest("No organization selected for this session"));
+  if (!req.user.orgId)
+    return next(ApiError.badRequest("No organization selected for this session"));
   next();
 }
 
@@ -11,6 +12,13 @@ function requireOrganization(req, res, next) {
 function requireSociety(req, res, next) {
   if (!req.user) return next(ApiError.unauthorized("Not authenticated"));
   if (!req.user.societyId) return next(ApiError.badRequest("No society selected for this session"));
+  next();
+}
+
+/** Ensures the verified access token carries a project scope. */
+function requireProject(req, res, next) {
+  if (!req.user) return next(ApiError.unauthorized("Not authenticated"));
+  if (!req.user.projectId) return next(ApiError.badRequest("No project selected for this session"));
   next();
 }
 
@@ -30,4 +38,4 @@ function matchOrganizationParam(paramName = "organizationId") {
   };
 }
 
-module.exports = { requireOrganization, requireSociety, matchOrganizationParam };
+module.exports = { requireOrganization, requireSociety, requireProject, matchOrganizationParam };

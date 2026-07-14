@@ -28,7 +28,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProjects, projectsStore } from "@/hooks/useProjectsStore";
-import { capsFor, PROJECT_HEALTH_TONES, PROJECT_PHASES, PROJECT_PRIORITIES } from "@/data/projects";
+import { PROJECT_HEALTH_TONES, PROJECT_PHASES, PROJECT_PRIORITIES } from "@/data/projects";
 import { formatCurrency } from "@/utils/format";
 import { cn } from "@/lib/utils";
 
@@ -37,8 +37,12 @@ const PAGE_SIZE = 6;
 
 export default function ProjectsListPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const caps = capsFor(user?.role);
+  const { hasPermission } = useAuth();
+  const caps = {
+    create: hasPermission("project.create"),
+    edit: hasPermission("project.edit"),
+    delete: hasPermission("project.delete"),
+  };
   const projects = useProjects();
 
   const [view, setView] = useState("list");

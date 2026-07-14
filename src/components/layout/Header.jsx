@@ -1,5 +1,6 @@
 import { useLocation, useNavigate, Link } from "react-router-dom";
-import { Search, Bell, Sun, Moon, PanelLeft, Command, LogOut, User, Settings, ChevronDown, Building2, Landmark, HelpCircle, Plus } from "lucide-react";
+import { Search, Bell, Sun, Moon, PanelLeft, Command, LogOut, User, Settings, ChevronDown, Building2, Landmark, HardHat, Check, HelpCircle, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +29,7 @@ function Breadcrumbs() {
 
 export default function Header({ onToggleSidebar, onOpenCommand }) {
   const { user, logout } = useAuth();
-  const { org, society, reset } = useWorkspace();
+  const { org, society, currentProject, availableProjects, reset, workspaceActions } = useWorkspace();
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
   const roleLabel = ROLES.find((r) => r.id === user?.role)?.label ?? user?.role;
@@ -36,6 +37,14 @@ export default function Header({ onToggleSidebar, onOpenCommand }) {
   const switchWorkspace = () => {
     reset();
     navigate("/auth/select-organization");
+  };
+
+  const switchProject = async (projectId) => {
+    try {
+      await workspaceActions.setProject(projectId);
+    } catch (err) {
+      toast.error(err.message || "Couldn't switch project");
+    }
   };
 
   const doLogout = () => {
@@ -73,7 +82,22 @@ export default function Header({ onToggleSidebar, onOpenCommand }) {
               <div className="px-2 py-1.5 space-y-1.5">
                 <div className="flex items-center gap-2 text-sm"><Building2 className="h-3.5 w-3.5 text-muted-foreground" /> {org?.name}</div>
                 <div className="flex items-center gap-2 text-sm"><Landmark className="h-3.5 w-3.5 text-muted-foreground" /> {society?.name}</div>
+                {currentProject && (
+                  <div className="flex items-center gap-2 text-sm"><HardHat className="h-3.5 w-3.5 text-muted-foreground" /> {currentProject.name}</div>
+                )}
               </div>
+              {availableProjects.length > 0 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">Switch project</DropdownMenuLabel>
+                  {availableProjects.map((p) => (
+                    <DropdownMenuItem key={p.id} onClick={() => switchProject(p.id)} className="justify-between">
+                      {p.name}
+                      {currentProject?.id === p.id && <Check className="h-3.5 w-3.5 text-primary" />}
+                    </DropdownMenuItem>
+                  ))}
+                </>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={switchWorkspace}>Switch organization / society</DropdownMenuItem>
             </DropdownMenuContent>

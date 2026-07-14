@@ -7,7 +7,9 @@ const { signAccessToken, createRefreshTokenPair } = require("./token.service");
 const { buildAccessContext } = require("./permission.service");
 
 async function findByIdentifier(identifier) {
-  const value = String(identifier || "").trim().toLowerCase();
+  const value = String(identifier || "")
+    .trim()
+    .toLowerCase();
   return User.findOne({ $or: [{ email: value }, { employeeId: value }] }).select("+passwordHash");
 }
 
@@ -17,8 +19,10 @@ async function authenticateCredentials(identifier, password) {
   if (!user) throw ApiError.unauthorized("Invalid email/employee ID or password");
 
   if (user.status === "inactive") throw ApiError.forbidden("This account has been deactivated");
-  if (user.status === "locked") throw ApiError.locked("This account has been locked by an administrator");
-  if (user.isLocked) throw ApiError.locked("Account locked due to too many failed attempts. Try again later.");
+  if (user.status === "locked")
+    throw ApiError.locked("This account has been locked by an administrator");
+  if (user.isLocked)
+    throw ApiError.locked("Account locked due to too many failed attempts. Try again later.");
 
   const valid = await user.comparePassword(password);
   if (!valid) {
@@ -38,6 +42,7 @@ async function issueTokensForSession({ user, session, remember, req }) {
     userId: user._id,
     orgId: session.organization,
     societyId: session.society,
+    projectId: session.project,
     roles: roles.map((r) => r.slug),
     permissions,
   });
@@ -82,7 +87,10 @@ async function rotateRefreshToken({ rawToken, req }) {
   if (!existing) throw ApiError.unauthorized("Invalid session");
 
   if (existing.revokedAt) {
-    await RefreshToken.updateMany({ family: existing.family, revokedAt: null }, { revokedAt: new Date() });
+    await RefreshToken.updateMany(
+      { family: existing.family, revokedAt: null },
+      { revokedAt: new Date() },
+    );
     await Session.findByIdAndUpdate(existing.session?._id, { revokedAt: new Date() });
     throw ApiError.unauthorized("Session revoked, please sign in again");
   }
@@ -122,6 +130,7 @@ async function rotateRefreshToken({ rawToken, req }) {
     userId: user._id,
     orgId: session.organization,
     societyId: session.society,
+    projectId: session.project,
     roles: roles.map((r) => r.slug),
     permissions,
   });
@@ -151,6 +160,7 @@ async function reissueAccessTokenForSession({ session, user }) {
     userId: user._id,
     orgId: session.organization,
     societyId: session.society,
+    projectId: session.project,
     roles: roles.map((r) => r.slug),
     permissions,
   });

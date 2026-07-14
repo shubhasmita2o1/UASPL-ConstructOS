@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOrganization, organizationsStore } from "@/hooks/useOrganizationsStore";
-import { ORG_INDUSTRIES, ORG_PLANS, ORG_STATUSES, orgCapsFor } from "@/data/organizations";
+import { ORG_INDUSTRIES, ORG_PLANS, ORG_STATUSES } from "@/data/organizations";
 
 const EMPTY = {
   name: "", city: "", industry: "Redevelopment", plan: "Business", status: "Onboarding",
@@ -22,8 +22,14 @@ const EMPTY = {
 export default function OrganizationFormPage({ mode = "create" }) {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { user } = useAuth();
-  const caps = orgCapsFor(user?.role);
+  const { hasPermission } = useAuth();
+  const caps = {
+    create: hasPermission("organization.create"),
+    edit: hasPermission("organization.edit"),
+    delete: hasPermission("organization.delete"),
+    assign: hasPermission("organization.assign"),
+    status: hasPermission("organization.status"),
+  };
   const existing = useOrganization(id);
 
   const canProceed = mode === "create" ? caps.create : caps.edit;

@@ -25,7 +25,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProject, projectsStore } from "@/hooks/useProjectsStore";
 import {
-  capsFor, PROJECT_HEALTH_TONES, activityFor, attachmentsFor, commentsFor, milestonesFor,
+  PROJECT_HEALTH_TONES, activityFor, attachmentsFor, commentsFor, milestonesFor,
 } from "@/data/projects";
 import { formatCurrency, initials } from "@/utils/format";
 import { cn } from "@/lib/utils";
@@ -36,8 +36,12 @@ const FILE_ICON = { pdf: FileText, dwg: FileIcon, xlsx: FileSpreadsheet, zip: Fi
 export default function ProjectDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const caps = capsFor(user?.role);
+  const { user, hasPermission } = useAuth();
+  const caps = {
+    create: hasPermission("project.create"),
+    edit: hasPermission("project.edit"),
+    delete: hasPermission("project.delete"),
+  };
   const project = useProject(id);
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState(false);

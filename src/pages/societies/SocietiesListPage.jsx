@@ -9,6 +9,7 @@ import StatCard from "@/components/common/StatCard";
 import StatusBadge from "@/components/common/StatusBadge";
 import SectionCard from "@/components/common/SectionCard";
 import EmptyState from "@/components/common/EmptyState";
+import ActionGuard from "@/components/common/ActionGuard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
@@ -16,13 +17,16 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { SOCIETIES_FULL, SOCIETY_PHASES, SOCIETY_PHASE_TONE } from "@/data/societies";
+import { csvEscape, downloadBlob } from "@/utils/downloadCsv";
+import { SOCIETY_PHASES, SOCIETY_PHASE_TONE } from "@/data/societies";
+import { useSocieties } from "@/hooks/useSocietiesStore";
 import { ORGANIZATIONS } from "@/data/mockData";
 import { initials } from "@/utils/format";
 import { cn } from "@/lib/utils";
 
 export default function SocietiesListPage() {
   const navigate = useNavigate();
+  const SOCIETIES_FULL = useSocieties();
   const [view, setView] = useState("grid");
   const [q, setQ] = useState("");
   const [phase, setPhase] = useState("all");
@@ -45,7 +49,7 @@ export default function SocietiesListPage() {
       return String(va).localeCompare(String(vb)) * dir;
     });
     return list;
-  }, [q, phase, org, sortKey, sortDir]);
+  }, [SOCIETIES_FULL, q, phase, org, sortKey, sortDir]);
 
   const stats = useMemo(() => {
     const societies = SOCIETIES_FULL.length;
@@ -53,7 +57,7 @@ export default function SocietiesListPage() {
     const buildings = SOCIETIES_FULL.reduce((s, x) => s + x.buildings, 0);
     const executing = SOCIETIES_FULL.filter((x) => x.phase === "Execution").length;
     return { societies, units, buildings, executing };
-  }, []);
+  }, [SOCIETIES_FULL]);
 
   const resetFilters = () => { setQ(""); setPhase("all"); setOrg("all"); };
   const filtersActive = q || phase !== "all" || org !== "all";
@@ -65,12 +69,14 @@ export default function SocietiesListPage() {
         description="Every cooperative housing society engaged with UASPL — registration, consent, buildings and delivery phase."
         actions={
           <>
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => toast.info("Export queued")}>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => exportCsv(filtered)}>
               <Download className="h-3.5 w-3.5" /> Export
             </Button>
-            <Button size="sm" className="gap-1.5" onClick={() => navigate("/app/societies/onboard")}>
-              <Plus className="h-3.5 w-3.5" /> New society
-            </Button>
+            <ActionGuard permission="society.create">
+              <Button size="sm" className="gap-1.5" onClick={() => navigate("/app/societies/onboard")}>
+                <Plus className="h-3.5 w-3.5" /> New society
+              </Button>
+            </ActionGuard>
           </>
         }
       />
@@ -160,9 +166,9 @@ export default function SocietiesListPage() {
             />
           </div>
         ) : view === "grid" ? (
-          <GridView items={filtered} />
+          <GridView items={filtered} onOpen={(id) => navigate(`/app/societies/${id}`)} />
         ) : (
-          <ListView items={filtered} />
+          <ListView items={filtered} onOpen={(id) => navigate(`/app/societies/${id}`)} />
         )}
       </SectionCard>
     </PageContainer>
@@ -177,11 +183,11 @@ function SocietyLogo({ name, size = 40 }) {
   );
 }
 
-function GridView({ items }) {
+function GridView({ items, onOpen }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-5">
       {items.map((s) => (
-        <div key={s.id} className="rounded-xl border border-border bg-background p-4 hover:border-primary/40 hover:shadow-card transition-all">
+        <div key={s.id} role="button" tabIndex={0} onClick={() => onOpen(s.id)} onKeyDown={(e) => { if (e.key === "Enter") onOpen(s.id); }} className="text-left rounded-xl border border-border bg-background p-4 hover:border-primary/40 hover:shadow-card transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <div className="flex items-start gap-3">
             <SocietyLogo name={s.name} />
             <div className="min-w-0 flex-1">
@@ -224,7 +230,7 @@ function StatMini({ label, value }) {
   );
 }
 
-function ListView({ items }) {
+function ListView({ items, onOpen }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-[13px]">
@@ -240,7 +246,7 @@ function ListView({ items }) {
         </thead>
         <tbody>
           {items.map((s) => (
-            <tr key={s.id} className="border-t border-border hover:bg-accent/40 transition-colors">
+            <tr key={s.id} onClick={() => onOpen(s.id)} className="border-t border-border hover:bg-accent/40 transition-colors cursor-pointer">
               <td className="px-5 py-3">
                 <div className="flex items-center gap-3">
                   <SocietyLogo name={s.name} size={34} />
@@ -266,4 +272,21 @@ function ListView({ items }) {
       </table>
     </div>
   );
+}
+
+function exportCsv(items) {
+  if (!items.length) { toast.info("Nothing to export"); return; }
+  const cols = [
+    ["Name", "name"], ["Organization", "orgName"], ["City", "city"], ["Address", "address"],
+    ["Phase", "phase"], ["Buildings", "buildings"], ["Units", "units"],
+    ["Consent %", "consentPct"], ["Registration", "registrationNo"],
+    ["Chairperson", "chairperson"], ["Chair phone", "chairPhone"],
+  ];
+  const rows = [cols.map((c) => c[0]).join(",")];
+  items.forEach((s) => rows.push(cols.map((c) => csvEscape(s[c[1]])).join(",")));
+  downloadBlob(
+    `societies-${new Date().toISOString().slice(0, 10)}.csv`,
+    new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8" }),
+  );
+  toast.success(`Exported ${items.length} societies`);
 }
