@@ -1,0 +1,36 @@
+flowchart TB
+
+    User([User])
+
+    subgraph Frontend
+        React["React + Vite"]
+        Router["React Router"]
+        Context["Auth Context"]
+        Dashboard["ERP Dashboard"]
+    end
+
+    subgraph Backend
+        API["Express API"]
+        Auth["JWT Authentication"]
+        RBAC["Role & Permissions"]
+        Services["Business Services"]
+    end
+
+    subgraph Database
+        Mongo[(MongoDB)]
+    end
+
+    User --> React
+    React --> Router
+    Router --> Context
+    Context --> Dashboard
+
+    Dashboard --> API
+
+    API --> Auth
+    API --> RBAC
+    API --> Services
+
+    Auth --> Mongo
+    RBAC --> Mongo
+    Services --> Mongo

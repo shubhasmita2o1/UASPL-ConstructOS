@@ -6,3 +6,7 @@
 - Avoid introducing new dependencies unless they provide clear value.
 - Keep components focused and maintainable.
 - Enterprise quality over cleverness.
+
+
+
+<!-- https://entangledfuture.com/search/?country=United+Arab+Emirates%2CIndia -->
