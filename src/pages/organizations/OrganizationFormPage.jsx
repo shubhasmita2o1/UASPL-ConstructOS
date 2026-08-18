@@ -133,3 +133,6 @@ export default function OrganizationFormPage({ mode = "create" }) {
   // only change submit button disabled state:
 
   // <Button type="submit" size="sm" disabled={createOrg.isPending || updateOrg.isPending}>
+  //   {mode === "create" ? "Create" : "Update"} Organization
+  // </Button>
+}
