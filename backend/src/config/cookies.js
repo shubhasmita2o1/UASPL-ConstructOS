@@ -7,7 +7,7 @@ const REFRESH_COOKIE = "uaspl_rt";
 const baseOptions = {
   httpOnly: true,
   secure: env.COOKIE_SECURE,
-  sameSite: "lax",
+  sameSite: env.COOKIE_SECURE ? "none" : "lax",  // was "lax"
   domain: env.COOKIE_DOMAIN,
 };
 
