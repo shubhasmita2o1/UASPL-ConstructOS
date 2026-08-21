@@ -1,4 +1,4 @@
-const BASE_URL = "/api";
+const BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 export class ApiClientError extends Error {
   constructor(message, status, errors = []) {
@@ -13,7 +13,10 @@ let refreshPromise = null;
 
 async function doRefresh() {
   if (!refreshPromise) {
-    refreshPromise = fetch(`${BASE_URL}/auth/refresh`, { method: "POST", credentials: "include" })
+    refreshPromise = fetch(`${BASE_URL}/auth/refresh`, {
+      method: "POST",
+      credentials: "include",
+    })
       .then((res) => res.ok)
       .finally(() => {
         refreshPromise = null;
@@ -39,14 +42,24 @@ async function request(path, { method = "GET", body, retry = true } = {}) {
 
   if (res.ok) return payload?.data;
 
-  const isAuthEndpoint = path.startsWith("/auth/login") || path.startsWith("/auth/refresh");
+  const isAuthEndpoint =
+    path.startsWith("/auth/login") || path.startsWith("/auth/refresh");
+
   if (res.status === 401 && retry && !isAuthEndpoint) {
     const refreshed = await doRefresh();
-    if (refreshed) return request(path, { method, body, retry: false });
+
+    if (refreshed) {
+      return request(path, { method, body, retry: false });
+    }
+
     window.dispatchEvent(new CustomEvent("auth:logout"));
   }
 
-  throw new ApiClientError(payload?.message || "Request failed", res.status, payload?.errors || []);
+  throw new ApiClientError(
+    payload?.message || "Request failed",
+    res.status,
+    payload?.errors || []
+  );
 }
 
 export const apiClient = {
