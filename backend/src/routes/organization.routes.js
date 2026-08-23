@@ -2,11 +2,15 @@ const express = require("express");
 const { body, param } = require("express-validator");
 const authenticate = require("../middleware/authenticate");
 const { requirePermission, requireAnyPermission } = require("../middleware/authorize");
+const {
+  attachTenantContext,
+  enforceTenantMembership,
+} = require("../middleware/scopeGuard");
 const validate = require("../validators/validate");
 const organizationController = require("../controllers/organization.controller");
 
 const router = express.Router();
-router.use(authenticate);
+router.use(authenticate, attachTenantContext, enforceTenantMembership);
 
 const VIEW_ANY = ["organization.view", "organization.create", "organization.edit"];
 
