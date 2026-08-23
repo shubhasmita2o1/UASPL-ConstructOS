@@ -1,4 +1,13 @@
-const BASE_URL = import.meta.env.VITE_API_URL || "/api";
+function normalizeBaseUrl(url) {
+  if (!url || typeof url !== "string") return "/api";
+  const trimmed = url.trim().replace(/\/+$/, "");
+  if (!trimmed) return "/api";
+  // Already ends with /api (local proxy or full backend URL)
+  if (trimmed === "/api" || trimmed.endsWith("/api")) return trimmed;
+  return `${trimmed}/api`;
+}
+
+const BASE_URL = normalizeBaseUrl(import.meta.env.VITE_API_URL);
 
 export class ApiClientError extends Error {
   constructor(message, status, errors = []) {
