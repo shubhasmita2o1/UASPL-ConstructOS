@@ -59,11 +59,6 @@ async function buildAccessContext(userId) {
  * parent level (or broader) see every child; narrower roles only see the
  * children their own UserRole assignments explicitly point at.
  *
- * Generalizes what used to be two near-identical functions
- * (getSocietiesForOrganization / getProjectsForSociety) into one, so a future
- * scope level (e.g. Buildings under a Project) only needs a new branch here
- * instead of a third copy of the same fetch-all-or-filter-by-ids shape.
- *
  * @param {"organization"|"society"} parentType
  * @param {string} parentId
  * @param {string} userId
@@ -72,8 +67,8 @@ async function getScopedChildren(parentType, parentId, userId) {
   const { isGlobal, assignments } = await buildAccessContext(userId);
 
   let ChildModel;
-  let parentField; // field on the child document pointing back at parentId
-  let childField; // field on a UserRole assignment pointing at one specific child
+  let parentField;
+  let childField;
   let hasParentLevelAccess = isGlobal;
 
   if (parentType === "organization") {
@@ -130,8 +125,7 @@ function getSocietiesForOrganization(userId, organizationId) {
 }
 
 /**
- * Projects the user may access within a given society. Kept as a named
- * wrapper around getScopedChildren so existing call sites don't need to change.
+ * Projects the user may access within a given society.
  */
 function getProjectsForSociety(userId, societyId) {
   return getScopedChildren("society", societyId, userId);
@@ -139,15 +133,10 @@ function getProjectsForSociety(userId, societyId) {
 
 /**
  * Throws ApiError.forbidden() unless the caller has access to every part of
- * the requested scope. Global-scope roles (Super Admin) always pass. This is
- * the single place tenant/scope access should be checked from — controllers
- * should call this instead of re-deriving access with their own inline logic.
+ * the requested scope. Global-scope roles (Super Admin) always pass.
  *
- * @param {{id: string}|string} reqUser - req.user (or a raw userId string)
+ * @param {{id: string}|string} reqUser
  * @param {{organization?: string, society?: string, project?: string}} requestedScope
- *   Any subset may be provided. Passing none at all (e.g. assigning a
- *   global/unscoped role) is only permitted for global-scope callers —
- *   a non-global caller must always name a scope they actually have access to.
  */
 async function assertScopeAccess(reqUser, requestedScope = {}) {
   const userId = typeof reqUser === "string" ? reqUser : reqUser?.id;
@@ -187,6 +176,49 @@ function hasPermission(permissions, key) {
   return permissions.includes("*") || permissions.includes(key);
 }
 
+/**
+ * Build a Mongo filter fragment that restricts results to organizations
+ * the user may access. Global → {}.
+ * For documents that store tenant as `organization` field.
+ */
+async function organizationFilterForUser(userId) {
+  const { isGlobal, organizations } = await buildAccessContext(userId);
+  if (isGlobal) return {};
+  return { organization: { $in: organizations.map((o) => o._id) } };
+}
+
+/**
+ * Resolve the organization id that must be stamped on a new document.
+ * Prefer session workspace; optionally accept a body/query candidate only
+ * if membership allows it. Never accept an unvalidated client id.
+ *
+ * @param {{id: string, orgId?: string}|string} reqUser
+ * @param {string|null} candidateOrgId
+ * @returns {Promise<string>} organizationId
+ */
+async function resolveCreateOrganizationId(reqUser, candidateOrgId = null) {
+  const userId = typeof reqUser === "string" ? reqUser : reqUser?.id;
+  const sessionOrg = typeof reqUser === "object" ? reqUser.orgId || null : null;
+  const { isGlobal, organizations } = await buildAccessContext(userId);
+
+  if (candidateOrgId) {
+    const allowed =
+      isGlobal ||
+      organizations.some((o) => String(o._id) === String(candidateOrgId));
+    if (!allowed) throw ApiError.forbidden("You do not have access to this organization");
+    return String(candidateOrgId);
+  }
+
+  if (sessionOrg) {
+    const allowed =
+      isGlobal || organizations.some((o) => String(o._id) === String(sessionOrg));
+    if (!allowed) throw ApiError.forbidden("You do not have access to this organization");
+    return String(sessionOrg);
+  }
+
+  throw ApiError.badRequest("No organization selected for this session");
+}
+
 module.exports = {
   buildAccessContext,
   getScopedChildren,
@@ -194,4 +226,6 @@ module.exports = {
   getProjectsForSociety,
   assertScopeAccess,
   hasPermission,
+  organizationFilterForUser,
+  resolveCreateOrganizationId,
 };

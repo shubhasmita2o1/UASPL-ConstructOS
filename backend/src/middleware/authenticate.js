@@ -19,6 +19,10 @@ function authenticate(req, res, next) {
       permissions: payload.permissions || [],
       accessTokenExpiresAt: new Date(payload.exp * 1000).toISOString(),
     };
+
+    req.organizationId = req.user.orgId || null;
+    req.societyId = req.user.societyId || null;
+    req.projectId = req.user.projectId || null;
     return next();
   } catch (err) {
     if (err instanceof jwt.TokenExpiredError) {

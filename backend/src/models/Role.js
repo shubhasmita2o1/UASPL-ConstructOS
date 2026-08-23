@@ -19,6 +19,7 @@ const roleSchema = new mongoose.Schema(
 );
 
 roleSchema.index({ slug: 1, organization: 1 }, { unique: true });
+roleSchema.index({ organization: 1, isActive: 1 });
 
 roleSchema.statics.DATA_SCOPES = DATA_SCOPES;
 
