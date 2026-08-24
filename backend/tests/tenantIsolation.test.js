@@ -76,8 +76,15 @@ async function seed() {
   ];
   const perms = {};
   for (const key of keys) {
-    const [resource, action] = key.split(".");
-    perms[key] = await Permission.create({ key, resource, action, description: key });
+    const [module, action] = key.split(".");
+    const label = `${module[0].toUpperCase()}${module.slice(1)} — ${action}`;
+    perms[key] = await Permission.create({
+      key,
+      module,
+      action,
+      label,
+      description: key,
+    });
   }
   const allPermIds = Object.values(perms).map((p) => p._id);
 
@@ -191,6 +198,7 @@ const ORG_ADMIN_PERMS = [
   "user.create",
   "user.edit",
   "organization.view",
+  "organization.create",
 ];
 
 // ─── Societies ───────────────────────────────────────────────────────────────
@@ -375,4 +383,95 @@ describe("Super Admin cross-tenant access", () => {
     );
     expect(String(resolved)).toBe(String(orgB._id));
   });
+  // ─── C: User create tenant-aware ─────────────────────────────────────────────
+
+describe("User create tenant-aware (Gap C)", () => {
+  test("C1. Org A admin creates user with organizationId = Org A → 201 + UserRole", async () => {
+    const email = `newa-${Date.now()}@test.local`;
+    const res = await request(app)
+      .post("/api/users")
+      .set("Cookie", authCookie(userA, { orgId: orgA._id, permissions: ORG_ADMIN_PERMS }))
+      .send({
+        name: "New User A",
+        email,
+        password: "Password1!",
+        organizationId: String(orgA._id),
+        roleId: String(roleOrgAdmin._id),
+      });
+
+    expect(res.status).toBe(201);
+    const createdId = res.body.data?._id || res.body.data?.id;
+    expect(createdId).toBeTruthy();
+
+    const assignment = await UserRole.findOne({
+      user: createdId,
+      organization: orgA._id,
+      isActive: true,
+    });
+    expect(assignment).not.toBeNull();
+    expect(String(assignment.role)).toBe(String(roleOrgAdmin._id));
+  });
+
+  test("C2. Org A admin creates user with organizationId = Org B → 403, no orphan user", async () => {
+    const email = `forged-${Date.now()}@test.local`;
+    const res = await request(app)
+      .post("/api/users")
+      .set("Cookie", authCookie(userA, { orgId: orgA._id, permissions: ORG_ADMIN_PERMS }))
+      .send({
+        name: "Forged User",
+        email,
+        password: "Password1!",
+        organizationId: String(orgB._id),
+        roleId: String(roleOrgAdmin._id),
+      });
+
+    expect(res.status).toBe(403);
+    const orphan = await User.findOne({ email });
+    expect(orphan).toBeNull();
+  });
+
+  test("C3. Org A admin creates user with no org and no session org → 400", async () => {
+    const email = `noorg-${Date.now()}@test.local`;
+    const res = await request(app)
+      .post("/api/users")
+      .set("Cookie", authCookie(userA, { orgId: null, permissions: ORG_ADMIN_PERMS }))
+      .send({
+        name: "No Org User",
+        email,
+        password: "Password1!",
+        roleId: String(roleOrgAdmin._id),
+      });
+
+    expect(res.status).toBe(400);
+    const orphan = await User.findOne({ email });
+    expect(orphan).toBeNull();
+  });
+});
+
+// ─── D: Organization create restricted ───────────────────────────────────────
+
+describe("Organization create restricted (Gap D)", () => {
+  test("D1. Org A admin POST /api/organizations → 403", async () => {
+    const res = await request(app)
+      .post("/api/organizations")
+      .set("Cookie", authCookie(userA, { orgId: orgA._id, permissions: ORG_ADMIN_PERMS }))
+      .send({ name: "Should Fail Org", plan: "Business" });
+
+    expect(res.status).toBe(403);
+    const created = await Organization.findOne({ name: "Should Fail Org" });
+    expect(created).toBeNull();
+  });
+
+  test("D2. Super Admin POST /api/organizations → 201", async () => {
+    const name = `Platform Org ${Date.now()}`;
+    const res = await request(app)
+      .post("/api/organizations")
+      .set("Cookie", authCookie(superUser, { orgId: null, permissions: ["*"] }))
+      .send({ name, plan: "Business" });
+
+    expect(res.status).toBe(201);
+    const created = await Organization.findOne({ name });
+    expect(created).not.toBeNull();
+  });
+});
 });

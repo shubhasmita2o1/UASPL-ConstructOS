@@ -7,6 +7,11 @@ const createUserRules = [
   body("phone").optional({ nullable: true }).trim(),
   body("title").optional({ nullable: true }).trim(),
   body("password").isLength({ min: 8 }).withMessage("Password must be at least 8 characters"),
+  body("organizationId").optional().isMongoId().withMessage("organizationId must be a valid id"),
+  body("roleId").optional().isMongoId().withMessage("roleId must be a valid id"),
+  body("role").optional().isMongoId().withMessage("role must be a valid id"),
+  body("societyId").optional().isMongoId().withMessage("societyId must be a valid id"),
+  body("projectId").optional().isMongoId().withMessage("projectId must be a valid id"),
 ];
 
 const updateUserRules = [
@@ -32,5 +37,7 @@ const revokeRoleRules = [
   param("id").isMongoId(),
   param("userRoleId").isMongoId(),
 ];
+
+
 
 module.exports = { createUserRules, updateUserRules, idParamRule, assignRoleRules, revokeRoleRules };
