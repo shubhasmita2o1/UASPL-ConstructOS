@@ -5,6 +5,7 @@ const env = require("../config/env");
 const { generateToken, sha256, msFromDuration } = require("../utils/crypto");
 const { signAccessToken, createRefreshTokenPair } = require("./token.service");
 const { buildAccessContext } = require("./permission.service");
+const auditService = require("./audit.service");
 
 async function findByIdentifier(identifier) {
   const value = String(identifier || "")
@@ -92,6 +93,18 @@ async function rotateRefreshToken({ rawToken, req }) {
       { revokedAt: new Date() },
     );
     await Session.findByIdAndUpdate(existing.session?._id, { revokedAt: new Date() });
+
+    // Phase 7: security event — stolen/reused refresh token
+    await auditService.record({
+      actor: existing.user,
+      action: "auth.refresh_reuse",
+      status: "failure",
+      targetType: "Session",
+      targetId: existing.session?._id || null,
+      metadata: { family: existing.family, reason: "refresh_token_reuse" },
+      req,
+    });
+
     throw ApiError.unauthorized("Session revoked, please sign in again");
   }
 
@@ -185,6 +198,56 @@ async function consumePasswordResetToken(rawToken) {
   return user;
 }
 
+// ─── Phase 7: session self-service ───────────────────────────────────────────
+
+async function listActiveSessionsForUser(userId) {
+  return Session.find({
+    user: userId,
+    revokedAt: null,
+    expiresAt: { $gt: new Date() },
+  })
+    .sort({ lastActiveAt: -1 })
+    .lean();
+}
+
+/** Revoke one session owned by userId; also revokes related refresh tokens. */
+async function revokeSessionForUser(userId, sessionId) {
+  const session = await Session.findOne({ _id: sessionId, user: userId });
+  if (!session) throw ApiError.notFound("Session not found");
+  if (session.revokedAt) return session;
+  session.revokedAt = new Date();
+  await session.save();
+  await RefreshToken.updateMany(
+    { session: session._id, revokedAt: null },
+    { revokedAt: new Date() },
+  );
+  return session;
+}
+
+/** Revoke all sessions for user except optional keepSessionId. */
+async function revokeOtherSessionsForUser(userId, keepSessionId = null) {
+  const filter = { user: userId, revokedAt: null };
+  if (keepSessionId) filter._id = { $ne: keepSessionId };
+  const sessions = await Session.find(filter).select("_id");
+  const ids = sessions.map((s) => s._id);
+  if (!ids.length) return 0;
+  await Session.updateMany({ _id: { $in: ids } }, { revokedAt: new Date() });
+  await RefreshToken.updateMany(
+    { session: { $in: ids }, revokedAt: null },
+    { revokedAt: new Date() },
+  );
+  return ids.length;
+}
+
+/** Resolve current Session from a raw refresh token cookie value. */
+async function findSessionByRefreshToken(rawToken) {
+  if (!rawToken) return null;
+  const tokenHash = sha256(rawToken);
+  const existing = await RefreshToken.findOne({ tokenHash, revokedAt: null }).lean();
+  if (!existing) return null;
+  return Session.findById(existing.session).lean();
+}
+
 module.exports = {
   authenticateCredentials,
   createSession,
@@ -195,4 +258,8 @@ module.exports = {
   reissueAccessTokenForSession,
   generatePasswordResetToken,
   consumePasswordResetToken,
+  listActiveSessionsForUser,
+  revokeSessionForUser,
+  revokeOtherSessionsForUser,
+  findSessionByRefreshToken,
 };

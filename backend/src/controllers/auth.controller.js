@@ -47,10 +47,29 @@ const login = catchAsync(async (req, res) => {
   try {
     user = await authService.authenticateCredentials(identifier, password);
   } catch (err) {
+    const meta = { identifier: String(identifier || "").trim().toLowerCase() };
+    try {
+      const maybe = await User.findOne({
+        $or: [{ email: meta.identifier }, { employeeId: meta.identifier }],
+      });
+      if (maybe?.lockUntil && maybe.lockUntil.getTime() > Date.now()) {
+        await auditService.record({
+          actor: maybe._id,
+          action: "user.auto_lock",
+          status: "failure",
+          targetType: "User",
+          targetId: maybe._id,
+          metadata: { reason: "max_login_attempts" },
+          req,
+        });
+      }
+    } catch (_) {
+      /* ignore lookup errors for audit enrichment */
+    }
     await auditService.record({
       action: "auth.login",
       status: "failure",
-      metadata: { identifier },
+      metadata: meta,
       req,
     });
     throw err;
@@ -79,7 +98,23 @@ const login = catchAsync(async (req, res) => {
 
 const logout = catchAsync(async (req, res) => {
   const rawToken = req.cookies?.[REFRESH_COOKIE];
+  let actor = req.user?.id || null;
+  if (!actor && req.cookies?.[ACCESS_COOKIE]) {
+    try {
+      const { verifyAccessToken } = require("../services/token.service");
+      const payload = verifyAccessToken(req.cookies[ACCESS_COOKIE]);
+      actor = payload.sub || null;
+    } catch (_) {
+      /* expired/invalid access token — still clear cookies */
+    }
+  }
   await authService.logoutByRefreshToken(rawToken);
+  await auditService.record({
+    actor,
+    action: "auth.logout",
+    status: "success",
+    req,
+  });
   res.clearCookie(ACCESS_COOKIE, clearCookieOptions());
   res.clearCookie(REFRESH_COOKIE, clearRefreshCookieOptions());
   return new ApiResponse(200, null, "Signed out").send(res);
@@ -307,6 +342,59 @@ const changePassword = catchAsync(async (req, res) => {
   return new ApiResponse(200, null, "Password changed").send(res);
 });
 
+// ─── Phase 7: session self-service ───────────────────────────────────────────
+
+const listMySessions = catchAsync(async (req, res) => {
+  const sessions = await authService.listActiveSessionsForUser(req.user.id);
+  const current = await authService.findSessionByRefreshToken(req.cookies?.[REFRESH_COOKIE]);
+  const currentId = current?._id ? String(current._id) : null;
+
+  const items = sessions.map((s) => ({
+    id: s._id,
+    ip: s.ip,
+    userAgent: s.userAgent,
+    organization: s.organization,
+    society: s.society,
+    project: s.project,
+    lastActiveAt: s.lastActiveAt,
+    createdAt: s.createdAt,
+    expiresAt: s.expiresAt,
+    isCurrent: currentId === String(s._id),
+  }));
+
+  return new ApiResponse(200, items, "OK").send(res);
+});
+
+const revokeMySession = catchAsync(async (req, res) => {
+  const session = await authService.revokeSessionForUser(req.user.id, req.params.id);
+  await auditService.record({
+    actor: req.user.id,
+    action: "user.revoke_session",
+    targetType: "Session",
+    targetId: session._id,
+    organization: req.user.orgId || session.organization || null,
+    metadata: { sessionId: String(session._id) },
+    req,
+  });
+  return new ApiResponse(200, null, "Session revoked").send(res);
+});
+
+const revokeOtherSessions = catchAsync(async (req, res) => {
+  const current = await authService.findSessionByRefreshToken(req.cookies?.[REFRESH_COOKIE]);
+  const keepId = current?._id || null;
+  const count = await authService.revokeOtherSessionsForUser(req.user.id, keepId);
+  await auditService.record({
+    actor: req.user.id,
+    action: "user.revoke_other_sessions",
+    targetType: "User",
+    targetId: req.user.id,
+    organization: req.user.orgId || null,
+    metadata: { revokedCount: count, keptSessionId: keepId ? String(keepId) : null },
+    req,
+  });
+  return new ApiResponse(200, { revokedCount: count }, "Other sessions revoked").send(res);
+});
+
 module.exports = {
   login,
   logout,
@@ -321,4 +409,7 @@ module.exports = {
   forgotPassword,
   resetPassword,
   changePassword,
+  listMySessions,
+  revokeMySession,
+  revokeOtherSessions,
 };

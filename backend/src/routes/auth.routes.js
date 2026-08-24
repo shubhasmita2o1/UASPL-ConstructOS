@@ -18,6 +18,12 @@ const router = express.Router();
 
 router.post("/login", loginLimiter, loginRules, validate, authController.login);
 router.post("/logout", authController.logout);
+
+// Phase 7: session self-service
+router.get("/sessions", authenticate, authController.listMySessions);
+router.delete("/sessions/:id", authenticate, authController.revokeMySession);
+router.post("/sessions/revoke-others", authenticate, authController.revokeOtherSessions);
+
 router.post("/refresh", authController.refresh);
 router.get("/me", authenticate, authController.me);
 
