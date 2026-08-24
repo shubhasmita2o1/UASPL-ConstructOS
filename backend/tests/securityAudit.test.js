@@ -264,3 +264,115 @@ describe("Phase 6 regression smoke", () => {
     expect([403, 404]).toContain(res.status);
   });
 });
+
+describe("Audit log filters (Phase 7 final gap)", () => {
+  test("A. Org A admin does not see Org B organization logs", async () => {
+    await AuditLog.create({
+      actor: userB._id,
+      action: "project.create",
+      organization: orgB._id,
+      status: "success",
+    });
+    await AuditLog.create({
+      actor: userA._id,
+      action: "project.create",
+      organization: orgA._id,
+      status: "success",
+    });
+
+    const res = await request(app)
+      .get("/api/audit-logs")
+      .set("Cookie", authCookie(userA, { orgId: orgA._id, permissions: ORG_ADMIN_PERMS }));
+
+    expect(res.status).toBe(200);
+    const items = res.body.data?.items || [];
+    const hasB = items.some((i) => String(i.organization) === String(orgB._id));
+    expect(hasB).toBe(false);
+  });
+
+  test("B. status=failure returns only failure rows", async () => {
+    await AuditLog.create({
+      actor: userA._id,
+      action: "auth.login",
+      organization: orgA._id,
+      status: "success",
+    });
+    await AuditLog.create({
+      actor: userA._id,
+      action: "auth.login",
+      organization: orgA._id,
+      status: "failure",
+      metadata: { reason: "bad_password" },
+    });
+
+    const res = await request(app)
+      .get("/api/audit-logs")
+      .query({ status: "failure" })
+      .set("Cookie", authCookie(userA, { orgId: orgA._id, permissions: ORG_ADMIN_PERMS }));
+
+    expect(res.status).toBe(200);
+    const items = res.body.data?.items || [];
+    expect(items.length).toBeGreaterThanOrEqual(1);
+    for (const item of items) {
+      expect(item.status).toBe("failure");
+    }
+  });
+
+  test("C. from/to narrows by createdAt without 500", async () => {
+    const past = new Date("2020-01-01T00:00:00.000Z");
+    const future = new Date("2099-01-01T00:00:00.000Z");
+
+    await AuditLog.collection.insertOne({
+      actor: userA._id,
+      action: "user.update",
+      organization: orgA._id,
+      status: "success",
+      metadata: {},
+      createdAt: past,
+      updatedAt: past,
+    });
+
+    const res = await request(app)
+      .get("/api/audit-logs")
+      .query({
+        from: "2020-01-01T00:00:00.000Z",
+        to: "2020-12-31T23:59:59.999Z",
+      })
+      .set("Cookie", authCookie(userA, { orgId: orgA._id, permissions: ORG_ADMIN_PERMS }));
+
+    expect(res.status).toBe(200);
+    const items = res.body.data?.items || [];
+    expect(items.length).toBeGreaterThanOrEqual(1);
+    for (const item of items) {
+      const t = new Date(item.createdAt).getTime();
+      expect(t).toBeGreaterThanOrEqual(new Date("2020-01-01T00:00:00.000Z").getTime());
+      expect(t).toBeLessThanOrEqual(new Date("2020-12-31T23:59:59.999Z").getTime());
+    }
+
+    const res2 = await request(app)
+      .get("/api/audit-logs")
+      .query({ from: future.toISOString() })
+      .set("Cookie", authCookie(userA, { orgId: orgA._id, permissions: ORG_ADMIN_PERMS }));
+    expect(res2.status).toBe(200);
+  });
+
+  test("D. Invalid status or invalid actor id → 400", async () => {
+    const badStatus = await request(app)
+      .get("/api/audit-logs")
+      .query({ status: "nope" })
+      .set("Cookie", authCookie(userA, { orgId: orgA._id, permissions: ORG_ADMIN_PERMS }));
+    expect(badStatus.status).toBe(400);
+
+    const badActor = await request(app)
+      .get("/api/audit-logs")
+      .query({ actor: "not-a-mongo-id" })
+      .set("Cookie", authCookie(userA, { orgId: orgA._id, permissions: ORG_ADMIN_PERMS }));
+    expect(badActor.status).toBe(400);
+
+    const badRange = await request(app)
+      .get("/api/audit-logs")
+      .query({ from: "2099-01-01", to: "2020-01-01" })
+      .set("Cookie", authCookie(userA, { orgId: orgA._id, permissions: ORG_ADMIN_PERMS }));
+    expect(badRange.status).toBe(400);
+  });
+});
