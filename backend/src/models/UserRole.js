@@ -18,5 +18,6 @@ const userRoleSchema = new mongoose.Schema(
 
 userRoleSchema.index({ user: 1, role: 1, organization: 1, society: 1, project: 1 }, { unique: true });
 userRoleSchema.index({ user: 1, isActive: 1 });
+userRoleSchema.index({ organization: 1, isActive: 1 });
 
 module.exports = mongoose.model("UserRole", userRoleSchema);

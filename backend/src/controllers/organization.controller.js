@@ -61,6 +61,19 @@ const getOne = catchAsync(async (req, res) => {
 });
 
 const create = catchAsync(async (req, res) => {
+  // Only Super Admin / global dataScope (or explicit platform create permission)
+  // may create new tenant organizations. Org Admins must not spin up new tenants.
+  const { isGlobal, permissions } = await permissionService.buildAccessContext(req.user.id);
+  const canCreatePlatform =
+    isGlobal ||
+    (permissions || []).includes("*") ||
+    (permissions || []).includes("organization.create_platform");
+  if (!canCreatePlatform) {
+    throw ApiError.forbidden(
+      "Only platform Super Admins can create new organizations",
+    );
+  }
+
   const payload = pick(req.body, ALLOWED_CREATE);
   if (!payload.name || !String(payload.name).trim()) {
     throw ApiError.badRequest("Organization name is required");

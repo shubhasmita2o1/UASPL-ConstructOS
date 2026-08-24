@@ -7,7 +7,13 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "seed": "node src/database/seed.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "NODE_ENV=test jest --runInBand --forceExit --detectOpenHandles",
+    "test:isolation": "NODE_ENV=test jest --runInBand --forceExit tests/tenantIsolation.test.js"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": ["**/tests/**/*.test.js"],
+    "testTimeout": 60000
   },
   "keywords": [],
   "author": "",
@@ -27,6 +33,9 @@
     "morgan": "^1.11.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "jest": "^30.0.0",
+    "mongodb-memory-server": "^10.1.4",
+    "nodemon": "^3.1.14",
+    "supertest": "^7.1.0"
   }
 }

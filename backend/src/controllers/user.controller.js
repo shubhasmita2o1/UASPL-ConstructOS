@@ -119,17 +119,86 @@ const getOne = catchAsync(async (req, res) => {
 });
 
 const create = catchAsync(async (req, res) => {
-  const { name, email, employeeId, phone, title, password } = req.body;
+  const { name, email, employeeId, phone, title, password, roleId, organizationId } = req.body;
+
+  // Require a validated organization for the new user (session or body).
+  // Platform Super Admins may intentionally create unscoped users only when
+  // they pass no organizationId and have no session org.
+  const { isGlobal } = await permissionService.buildAccessContext(req.user.id);
+  let resolvedOrgId = null;
+  try {
+    resolvedOrgId = await permissionService.resolveCreateOrganizationId(
+      req.user,
+      organizationId || null,
+    );
+  } catch (err) {
+    if (!isGlobal) throw err;
+    // Global Super Admin with no session/body org: allowed to create
+    // platform-level user with zero membership (role assign later).
+    resolvedOrgId = null;
+  }
+
+  if (!resolvedOrgId && !isGlobal) {
+    throw ApiError.badRequest("Organization is required when creating a user");
+  }
 
   const existing = await User.findOne({ email: String(email).toLowerCase() });
   if (existing) throw ApiError.conflict("A user with this email already exists");
 
-  const user = new User({ name, email, employeeId: employeeId || undefined, phone, title, mustChangePassword: true });
+  const user = new User({
+    name,
+    email,
+    employeeId: employeeId || undefined,
+    phone,
+    title,
+    mustChangePassword: true,
+  });
   await user.setPassword(password);
   await user.save();
 
-  await auditService.record({ actor: req.user.id, action: "user.create", targetType: "User", targetId: user._id, req });
-  return new ApiResponse(201, user, "User created").send(res);
+  let assignment = null;
+  if (roleId && resolvedOrgId) {
+    assignment = await UserRole.findOneAndUpdate(
+      {
+        user: user._id,
+        role: roleId,
+        organization: resolvedOrgId,
+        society: null,
+        project: null,
+      },
+      {
+        $set: {
+          assignedBy: req.user.id,
+          isActive: true,
+        },
+      },
+      { upsert: true, returnDocument: "after", setDefaultsOnInsert: true },
+    ).populate("role", "name slug");
+
+    await auditService.record({
+      actor: req.user.id,
+      action: "user.assign_role",
+      targetType: "User",
+      targetId: user._id,
+      organization: resolvedOrgId,
+      metadata: { role: roleId, organization: resolvedOrgId },
+      req,
+    });
+  }
+
+  await auditService.record({
+    actor: req.user.id,
+    action: "user.create",
+    targetType: "User",
+    targetId: user._id,
+    organization: resolvedOrgId || undefined,
+    req,
+  });
+
+  const payload = assignment
+    ? { ...(typeof user.toObject === "function" ? user.toObject() : user), roleAssignments: [assignment] }
+    : user;
+  return new ApiResponse(201, payload, "User created").send(res);
 });
 
 const update = catchAsync(async (req, res) => {

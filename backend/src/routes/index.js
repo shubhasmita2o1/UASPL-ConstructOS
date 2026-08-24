@@ -5,6 +5,7 @@ const permissionRoutes = require("./permission.routes");
 const userRoutes = require("./user.routes");
 const organizationRoutes = require("./organization.routes");
 const societyRoutes = require("./society.routes");
+const projectRoutes = require("./project.routes");
 const auditLogRoutes = require("./auditLog.routes");
 const dashboardRoutes = require("./dashboard.routes");
 
@@ -18,6 +19,7 @@ router.use("/permissions", permissionRoutes);
 router.use("/users", userRoutes);
 router.use("/organizations", organizationRoutes);
 router.use("/societies", societyRoutes);
+router.use("/projects", projectRoutes);
 router.use("/audit-logs", auditLogRoutes);
 router.use("/dashboard", dashboardRoutes);
 
