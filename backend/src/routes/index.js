@@ -8,6 +8,11 @@ const societyRoutes = require("./society.routes");
 const projectRoutes = require("./project.routes");
 const auditLogRoutes = require("./auditLog.routes");
 const dashboardRoutes = require("./dashboard.routes");
+const departmentRoutes = require("./department.routes");
+const unitRoutes = require("./unit.routes");
+const itemRoutes = require("./item.routes");
+const vendorRoutes = require("./vendor.routes");
+const stakeholderRoutes = require("./stakeholder.routes");
 
 const router = express.Router();
 
@@ -22,5 +27,10 @@ router.use("/societies", societyRoutes);
 router.use("/projects", projectRoutes);
 router.use("/audit-logs", auditLogRoutes);
 router.use("/dashboard", dashboardRoutes);
+router.use("/departments", departmentRoutes);
+router.use("/units", unitRoutes);
+router.use("/items", itemRoutes);
+router.use("/vendors", vendorRoutes);
+router.use("/stakeholders", stakeholderRoutes);
 
 module.exports = router;
