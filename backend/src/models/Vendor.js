@@ -42,4 +42,4 @@ vendorSchema.index({ organization: 1, code: 1 }, { unique: true, sparse: true })
 vendorSchema.index({ organization: 1, name: 1 });
 vendorSchema.index({ organization: 1, status: 1 });
 
-module.exports = mongoose.models.Item || mongoose.model("Item", itemSchema);
+module.exports = mongoose.models.Vendor || mongoose.model("Vendor", vendorSchema);
