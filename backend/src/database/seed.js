@@ -58,6 +58,31 @@ const PERMISSIONS = [
   ["task.delete", "task", "delete"],
 
   ["audit.view", "audit", "view"],
+
+  ["department.view", "department", "view"],
+  ["department.create", "department", "create"],
+  ["department.edit", "department", "edit"],
+  ["department.delete", "department", "delete"],
+
+  ["unit.view", "unit", "view"],
+  ["unit.create", "unit", "create"],
+  ["unit.edit", "unit", "edit"],
+  ["unit.delete", "unit", "delete"],
+
+  ["item.view", "item", "view"],
+  ["item.create", "item", "create"],
+  ["item.edit", "item", "edit"],
+  ["item.delete", "item", "delete"],
+
+  ["vendor.view", "vendor", "view"],
+  ["vendor.create", "vendor", "create"],
+  ["vendor.edit", "vendor", "edit"],
+  ["vendor.delete", "vendor", "delete"],
+
+  ["stakeholder.view", "stakeholder", "view"],
+  ["stakeholder.create", "stakeholder", "create"],
+  ["stakeholder.edit", "stakeholder", "edit"],
+  ["stakeholder.delete", "stakeholder", "delete"],
 ];
 
 const ROLE_PERMISSION_MAP = {
@@ -78,6 +103,26 @@ const ROLE_PERMISSION_MAP = {
     "project.create",
     "project.edit",
     "project.delete",
+    "department.view",
+    "department.create",
+    "department.edit",
+    "department.delete",
+    "unit.view",
+    "unit.create",
+    "unit.edit",
+    "unit.delete",
+    "item.view",
+    "item.create",
+    "item.edit",
+    "item.delete",
+    "vendor.view",
+    "vendor.create",
+    "vendor.edit",
+    "vendor.delete",
+    "stakeholder.view",
+    "stakeholder.create",
+    "stakeholder.edit",
+    "stakeholder.delete",
     "user.view",
     "user.create",
     "user.edit",

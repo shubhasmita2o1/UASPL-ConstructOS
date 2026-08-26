@@ -30,4 +30,4 @@ projectSchema.index({ organization: 1, createdAt: -1 });
 projectSchema.index({ organization: 1, phase: 1 });
 projectSchema.index({ society: 1, name: 1 });
 
-module.exports = mongoose.model("Project", projectSchema);
+module.exports = mongoose.models.Project || mongoose.model("Project", projectSchema);

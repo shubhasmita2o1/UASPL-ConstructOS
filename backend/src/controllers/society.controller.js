@@ -1,10 +1,10 @@
-// controllers/society.controller.js
 const catchAsync = require("../utils/catchAsync");
 const ApiError = require("../utils/ApiError");
 const ApiResponse = require("../utils/ApiResponse");
 const { Society } = require("../models");
 const auditService = require("../services/audit.service");
 const permissionService = require("../services/permission.service");
+const { bumpCounter, refreshOrganizationCounters } = require("../services/organizationStats.service");
 
 const list = catchAsync(async (req, res) => {
   const { isGlobal, organizations } = await permissionService.buildAccessContext(req.user.id);
@@ -13,17 +13,19 @@ const list = catchAsync(async (req, res) => {
   const filter = {};
   if (!isGlobal) filter.organization = { $in: accessibleOrgIds };
 
-  // Optional narrow: only if membership allows the requested org
   if (req.query.organizationId) {
     const requested = String(req.query.organizationId);
-    const allowed =
-      isGlobal || accessibleOrgIds.some((id) => String(id) === requested);
+    const allowed = isGlobal || accessibleOrgIds.some((id) => String(id) === requested);
     filter.organization = allowed ? requested : { $in: [] };
   } else if (req.organizationId) {
-    // Prefer current workspace when present
     const allowed =
       isGlobal || accessibleOrgIds.some((id) => String(id) === String(req.organizationId));
     if (allowed) filter.organization = req.organizationId;
+  }
+  if (req.query.status) filter.status = req.query.status;
+  if (req.query.q) {
+    const term = String(req.query.q).trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    filter.$or = [{ name: new RegExp(term, "i") }, { code: new RegExp(term, "i") }, { city: new RegExp(term, "i") }];
   }
 
   const societies = await Society.find(filter).sort({ name: 1 }).lean();
@@ -33,11 +35,7 @@ const list = catchAsync(async (req, res) => {
 const getOne = catchAsync(async (req, res) => {
   const society = await Society.findById(req.params.id).lean();
   if (!society) throw ApiError.notFound("Society not found");
-
-  await permissionService.assertScopeAccess(req.user, {
-    organization: society.organization,
-  });
-
+  await permissionService.assertScopeAccess(req.user, { organization: society.organization });
   return new ApiResponse(200, society, "OK").send(res);
 });
 
@@ -52,13 +50,25 @@ const create = catchAsync(async (req, res) => {
 
   const society = await Society.create({
     name,
+    code: req.body.code ? String(req.body.code).trim().toUpperCase() : null,
     organization: organizationId,
     address: req.body.address,
-    buildings: req.body.buildings,
-    units: req.body.units,
+    city: req.body.city || "",
+    state: req.body.state || "",
+    pincode: req.body.pincode || "",
+    registrationNumber: req.body.registrationNumber || "",
+    buildings: req.body.buildings ?? req.body.totalBuildings ?? 0,
+    units: req.body.units ?? req.body.totalUnits ?? 0,
+    totalBuildings: req.body.totalBuildings ?? req.body.buildings ?? 0,
+    totalUnits: req.body.totalUnits ?? req.body.units ?? 0,
     phase: req.body.phase,
+    status: req.body.status || "Active",
+    contact: req.body.contact || {},
+    notes: req.body.notes || "",
     createdBy: req.user.id,
   });
+
+  await bumpCounter(organizationId, "societies", 1);
 
   await auditService.record({
     actor: req.user.id,
@@ -80,13 +90,17 @@ const update = catchAsync(async (req, res) => {
     organization: society.organization,
   });
 
-  // Never allow moving a society to another tenant via body
-  const { name, address, buildings, units, phase } = req.body;
-  if (name !== undefined) society.name = name;
-  if (address !== undefined) society.address = address;
-  if (buildings !== undefined) society.buildings = buildings;
-  if (units !== undefined) society.units = units;
-  if (phase !== undefined) society.phase = phase;
+  const fields = [
+    "name", "address", "city", "state", "pincode", "registrationNumber",
+    "buildings", "units", "totalBuildings", "totalUnits", "phase", "status", "notes",
+  ];
+  for (const f of fields) {
+    if (req.body[f] !== undefined) society[f] = req.body[f];
+  }
+  if (req.body.code !== undefined) {
+    society.code = req.body.code ? String(req.body.code).trim().toUpperCase() : null;
+  }
+  if (req.body.contact !== undefined) society.contact = req.body.contact;
   await society.save();
 
   await auditService.record({
@@ -95,6 +109,7 @@ const update = catchAsync(async (req, res) => {
     targetType: "Society",
     targetId: society._id,
     organization: society.organization,
+    metadata: { fields: Object.keys(req.body) },
     req,
   });
 
@@ -109,14 +124,16 @@ const remove = catchAsync(async (req, res) => {
     organization: society.organization,
   });
 
+  const orgId = society.organization;
   await society.deleteOne();
+  await refreshOrganizationCounters(orgId);
 
   await auditService.record({
     actor: req.user.id,
     action: "society.delete",
     targetType: "Society",
     targetId: society._id,
-    organization: society.organization,
+    organization: orgId,
     req,
   });
 

@@ -11,4 +11,9 @@ module.exports = {
   Session: require("./Session"),
   AuditLog: require("./AuditLog"),
   Notification: require("./Notification"),
+  Department: require("./Department"),
+  Unit: require("./Unit"),
+  Item: require("./Item"),
+  Vendor: require("./Vendor"),
+  Stakeholder: require("./Stakeholder"),
 };
