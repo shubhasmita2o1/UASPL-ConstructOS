@@ -1,22 +1,33 @@
 const mongoose = require("mongoose");
 
-const projectSchema = new mongoose.Schema(
+const contactSchema = new mongoose.Schema(
+  {
+    name: { type: String, trim: true, default: "" },
+    email: { type: String, trim: true, lowercase: true, default: "" },
+    phone: { type: String, trim: true, default: "" },
+  },
+  { _id: false },
+);
+
+const societySchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     code: { type: String, trim: true, uppercase: true, default: null },
-    description: { type: String, trim: true, default: "" },
     organization: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Organization",
       required: true,
       index: true,
     },
-    society: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Society",
-      required: true,
-      index: true,
-    },
+    address: { type: String, trim: true },
+    city: { type: String, trim: true, default: "" },
+    state: { type: String, trim: true, default: "" },
+    pincode: { type: String, trim: true, default: "" },
+    registrationNumber: { type: String, trim: true, default: "" },
+    buildings: { type: Number, default: 0 },
+    units: { type: Number, default: 0 },
+    totalBuildings: { type: Number, default: 0 },
+    totalUnits: { type: Number, default: 0 },
     phase: {
       type: String,
       enum: ["Feasibility", "Design", "Approvals", "Planning", "Execution", "Handover", "Closed"],
@@ -24,26 +35,20 @@ const projectSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Active", "OnHold", "Completed", "Cancelled"],
+      enum: ["Active", "Onboarding", "OnHold", "Closed"],
       default: "Active",
     },
-    startDate: { type: Date, default: null },
-    targetEndDate: { type: Date, default: null },
-    actualEndDate: { type: Date, default: null },
-    budgetAmount: { type: Number, default: 0 },
-    currency: { type: String, trim: true, uppercase: true, default: "INR" },
-    projectManager: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
-    address: { type: String, trim: true, default: "" },
+    contact: { type: contactSchema, default: () => ({}) },
+    notes: { type: String, trim: true, default: "" },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
   },
   { timestamps: true },
 );
 
-projectSchema.index({ organization: 1, society: 1 });
-projectSchema.index({ organization: 1, createdAt: -1 });
-projectSchema.index({ organization: 1, phase: 1 });
-projectSchema.index({ society: 1, name: 1 });
-projectSchema.index({ organization: 1, code: 1 }, { unique: true, sparse: true });
-projectSchema.index({ organization: 1, status: 1 });
+societySchema.index({ organization: 1, name: 1 });
+societySchema.index({ organization: 1, createdAt: -1 });
+societySchema.index({ organization: 1, phase: 1 });
+societySchema.index({ organization: 1, code: 1 }, { unique: true, sparse: true });
+societySchema.index({ organization: 1, status: 1 });
 
 module.exports = mongoose.models.Society || mongoose.model("Society", societySchema);
