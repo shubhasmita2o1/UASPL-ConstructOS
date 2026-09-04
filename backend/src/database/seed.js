@@ -1,4 +1,4 @@
-/* Idempotent seed: permission catalog, default roles, one org/society, demo users. */
+/* Idempotent seed: permission catalog, 5 default roles, one org/society, one Super Admin user. */
 const crypto = require("crypto");
 const env = require("../config/env");
 const connectDB = require("../config/db");
@@ -236,63 +236,6 @@ const ROLES = [
   },
 ];
 
-const ROLE_EXPERIENCE = {
-  super_admin: {
-    sidebarMenus: [
-      "dashboard", "activity", "organizations", "societies", "projects",
-      "users", "roles", "audit", "settings", "reports", "analytics", "notifications", "help",
-    ],
-    dashboardWidgets: [
-      "platformOrgs", "platformUsers", "platformSocieties", "platformProjects",
-      "tenantTable", "accessEvents", "recentActivity",
-    ],
-  },
-  org_admin: {
-    sidebarMenus: [
-      "dashboard", "activity", "societies", "projects", "tasks", "vendors",
-      "finance", "hr", "users", "roles", "meetings", "documents", "reports", "settings", "help",
-    ],
-    dashboardWidgets: [
-      "orgSocieties", "orgProjects", "orgMembers", "orgSpend",
-      "projectHealth", "vendorOnboarding", "recentActivity",
-    ],
-  },
-  project_manager: {
-    sidebarMenus: [
-      "dashboard", "activity", "projects", "tasks", "calendar", "drawings", "tmi",
-      "materials", "inventory", "finance", "reports", "documents", "notifications", "help",
-    ],
-    dashboardWidgets: [
-      "myProjects", "pendingApprovals", "openTasks", "committedSpend",
-      "programme", "approvalsQueue", "projectHealth",
-    ],
-  },
-  site_engineer: {
-    sidebarMenus: [
-      "dashboard", "tasks", "calendar", "drawings", "tmi", "inventory",
-      "documents", "notifications", "help",
-    ],
-    dashboardWidgets: [
-      "myTasks", "openNcrs", "drawingsToReview", "siteAttendance", "todayWork", "ncrList",
-    ],
-  },
-  vendor: {
-    sidebarMenus: [
-      "dashboard", "projects", "drawings", "inventory", "documents", "notifications", "help",
-    ],
-    dashboardWidgets: ["openPOs", "deliveriesDue", "pendingInvoices", "drawingsToUpload", "poTable"],
-  },
-  hr_manager: {
-    sidebarMenus: [
-      "dashboard", "hr", "users", "calendar", "documents", "reports", "notifications", "help",
-    ],
-    dashboardWidgets: [
-      "hrHeadcount", "hrAttendance", "hrLeave", "hrOpenRoles",
-      "hrOnboarding", "hrPayroll", "leaveQueue", "siteManpower",
-    ],
-  },
-};
-
 async function upsertPermissions() {
   const byKey = new Map();
   for (const [key, module, action] of PERMISSIONS) {
@@ -318,10 +261,10 @@ async function upsertRoles(permissionsByKey) {
         ? allPermissionIds
         : wanted.map((key) => permissionsByKey.get(key)?._id).filter(Boolean);
 
-    const experience = ROLE_EXPERIENCE[roleDef.slug] || { sidebarMenus: [], dashboardWidgets: [] };
-
     // System roles are seed-owned (the API blocks editing their permissions/details — see
-    // role.controller.js), so every run re-syncs catalog, permissions, menus and widgets.
+    // role.controller.js), so every run re-syncs them to the current catalog/map above.
+    // sidebarMenus/dashboardWidgets are left alone after creation since those are meant to
+    // be admin-configurable once that feature is wired up.
     const role = await Role.findOneAndUpdate(
       { slug: roleDef.slug, organization: null },
       {
@@ -331,12 +274,12 @@ async function upsertRoles(permissionsByKey) {
           dataScope: roleDef.dataScope,
           isSystem: roleDef.isSystem,
           permissions: permissionIds,
-          sidebarMenus: experience.sidebarMenus,
-          dashboardWidgets: experience.dashboardWidgets,
         },
         $setOnInsert: {
           slug: roleDef.slug,
           organization: null,
+          sidebarMenus: [],
+          dashboardWidgets: [],
         },
       },
       { upsert: true, returnDocument: "after" },

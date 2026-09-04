@@ -1,17 +1,15 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { HardHat, ChevronsLeft } from "lucide-react";
 import { buildVisibleNavSections } from "@/constants/navigation";
-import { getRoleExperience } from "@/constants/roleExperience";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function Sidebar({ collapsed, onToggle }) {
   const { pathname } = useLocation();
-  const { hasAnyPermission, user } = useAuth();
-  const xp = getRoleExperience(user);
+  const { hasAnyPermission } = useAuth();
 
-  const visibleSections = buildVisibleNavSections(hasAnyPermission, xp.sidebarMenus);
+  const visibleSections = buildVisibleNavSections(hasAnyPermission);
 
   return (
     <aside
@@ -27,7 +25,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         {!collapsed && (
           <div className="min-w-0 leading-tight">
             <div className="text-[13px] font-semibold truncate">ConstructOS</div>
-            <div className="text-[10.5px] text-muted-foreground truncate">{xp.label}</div>
+            <div className="text-[10.5px] text-muted-foreground truncate">by UASPL</div>
           </div>
         )}
         {!collapsed && (

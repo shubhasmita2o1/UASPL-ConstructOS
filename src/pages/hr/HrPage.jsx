@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Users2, Clock, Briefcase, UserPlus, Search } from "lucide-react";
-import { HR_DIRECTORY, HR_LEAVE_QUEUE, HR_ONBOARDING, HR_OPEN_ROLES } from "@/data/roleDashboards";
+import { HR_DIRECTORY, HR_LEAVE_QUEUE, HR_ONBOARDING, HR_OPEN_ROLES } from "@/data/hrData";
 import { initials } from "@/utils/format";
 
 const TONE = {
