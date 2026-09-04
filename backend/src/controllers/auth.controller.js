@@ -17,6 +17,7 @@ const {
 } = require("../config/cookies");
 
 function serializeUser(user, roles) {
+  const primary = roles[0] || {};
   return {
     id: user._id,
     name: user.name,
@@ -24,8 +25,16 @@ function serializeUser(user, roles) {
     employeeId: user.employeeId || null,
     avatar: user.avatar || null,
     title: user.title || null,
-    role: roles[0]?.slug || null,
-    roles: roles.map((r) => ({ id: r.id, name: r.name, slug: r.slug })),
+    role: primary.slug || null,
+    roles: roles.map((r) => ({
+      id: r.id,
+      name: r.name,
+      slug: r.slug,
+      sidebarMenus: r.sidebarMenus || [],
+      dashboardWidgets: r.dashboardWidgets || [],
+    })),
+    sidebarMenus: primary.sidebarMenus || [],
+    dashboardWidgets: primary.dashboardWidgets || [],
     mustChangePassword: !!user.mustChangePassword,
   };
 }

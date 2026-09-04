@@ -26,7 +26,13 @@ async function buildAccessContext(userId) {
   let isGlobal = false;
 
   for (const a of active) {
-    roleMap.set(String(a.role._id), { id: a.role._id, name: a.role.name, slug: a.role.slug });
+    roleMap.set(String(a.role._id), {
+      id: a.role._id,
+      name: a.role.name,
+      slug: a.role.slug,
+      sidebarMenus: a.role.sidebarMenus || [],
+      dashboardWidgets: a.role.dashboardWidgets || [],
+    });
     for (const p of a.role.permissions || []) permissionSet.add(p.key);
     if (a.role.slug === "super_admin") permissionSet.add("*");
     if (a.role.dataScope === "global") isGlobal = true;

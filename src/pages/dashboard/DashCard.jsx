@@ -1,0 +1,16 @@
+export default function DashCard({ title, description, action, children, className = "" }) {
+  return (
+    <section className={`rounded-xl border border-border bg-card shadow-card ${className}`}>
+      {(title || action) && (
+        <header className="px-5 py-4 border-b border-border flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            {title && <h3 className="text-[14px] font-semibold text-foreground">{title}</h3>}
+            {description && <p className="text-[12px] text-muted-foreground mt-0.5">{description}</p>}
+          </div>
+          {action}
+        </header>
+      )}
+      <div className="p-5">{children}</div>
+    </section>
+  );
+}

@@ -43,6 +43,9 @@ const env = {
 
   SEED_SITE_ENGINEER_EMAIL: process.env.SEED_SITE_ENGINEER_EMAIL || "",
   SEED_SITE_ENGINEER_PASSWORD: process.env.SEED_SITE_ENGINEER_PASSWORD || "",
+
+  SEED_HR_MANAGER_EMAIL: process.env.SEED_HR_MANAGER_EMAIL || "",
+  SEED_HR_MANAGER_PASSWORD: process.env.SEED_HR_MANAGER_PASSWORD || "",
 };
 
 module.exports = env;

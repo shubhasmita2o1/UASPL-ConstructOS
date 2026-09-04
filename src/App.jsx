@@ -35,11 +35,13 @@ import RoleFormPage from "@/pages/admin/roles/RoleFormPage";
 import RoleDetailsPage from "@/pages/admin/roles/RoleDetailsPage";
 import AssignPermissionsPage from "@/pages/admin/roles/AssignPermissionsPage";
 import PermissionMatrixPage from "@/pages/admin/roles/PermissionMatrixPage";
+import HrPage from "@/pages/hr/HrPage";
 import { FLAT_NAV } from "@/constants/navigation";
 
 const WIRED_PATHS = [
   "/app/dashboard", "/app/projects", "/app/organizations", "/app/tasks",
   "/app/calendar", "/app/societies", "/app/activity", "/app/roles", "/app/users",
+  "/app/hr",
 ];
 
 function FullScreenLoader() {
@@ -125,6 +127,9 @@ export default function App() {
               <Route path="users/:id" element={<UserDetailsPage />} />
               <Route path="users/:id/edit" element={<UserFormPage mode="edit" />} />
               <Route path="users/:id/roles" element={<AssignRolesPage />} />
+            </Route>
+            <Route element={<RequirePermission anyOf={["hr.view", "hr.manage", "users.manage"]} />}>
+              <Route path="hr" element={<HrPage />} />
             </Route>
 
             {FLAT_NAV.filter((n) => !WIRED_PATHS.includes(n.to)).map((n) => (
