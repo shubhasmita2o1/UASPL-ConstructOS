@@ -499,6 +499,10 @@ async function run() {
   ];
 
   for (const def of demoRoleUsers) {
+    if (!def.role) {
+      console.log(`[seed] Skipped ${def.label} — role is missing from catalog. Pull latest seed.js.`);
+      continue;
+    }
     const result = await upsertScopedDemoUser(def);
     if (result) {
       console.log(
